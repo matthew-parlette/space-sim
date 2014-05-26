@@ -28,3 +28,5 @@ if __name__ == "__main__":
   log.addHandler(fh)
 
   log.info("Initializing")
+
+  log.info("Shutting Down")
