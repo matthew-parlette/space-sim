@@ -4,6 +4,7 @@ import argparse
 import logging
 import os
 import sys
+import socket
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -61,5 +62,20 @@ if __name__ == "__main__":
         os.utime(statefile_name, None)
 
   log.info("Game data verified")
+
+  log.info("Starting TCP server")
+  s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+  s.bind(('0.0.0.0',10344))
+  log.info("Listening for connections")
+  s.listen(1)
+
+  conn, addr = s.accept()
+  log.info("Received connection from %s" % str(addr))
+  while 1:
+    data = conn.recv(1024)
+    if not data: break
+    log.info("Received data: %s" % data)
+    conn.send(data) # echo
+  conn.close()
 
   log.info("Shutting Down")
