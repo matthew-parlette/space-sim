@@ -5,6 +5,20 @@ import logging
 import os
 import sys
 import socket
+import json
+
+def parse_request(log,request_in):
+  log.debug("Loading request as json")
+  request = json.loads(request_in)
+  log.info("Loaded json as %s" % str(request))
+  response = {}
+  if request['action'] == "login":
+    log.info("Detected login action")
+    response['result'] = "success"
+  else:
+    response['result'] = "failure"
+  log.info("Response is %s" % str(response))
+  return json.dumps(response)
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -75,7 +89,7 @@ if __name__ == "__main__":
     data = conn.recv(1024)
     if not data: break
     log.info("Received data: %s" % data)
-    conn.send(data) # echo
+    conn.send(parse_request(log,data))
   conn.close()
 
   log.info("Shutting Down")
