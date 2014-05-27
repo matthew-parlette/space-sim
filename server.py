@@ -35,8 +35,12 @@ if __name__ == "__main__":
   # Verify data directory structure
   log.info("Verifying game data")
 
-  dirs = ['universe']
+  # Top level directories
+  dirs = ['universe','universe/sectors']
+  # Sectors
+  dirs += ['universe/sectors/' + str(s) for s in range(1,11)]
 
+  # Verify directory and statefile exists
   for d in dirs:
     log.debug("Verifying '%s' path" % str(d))
     if os.path.isdir(str(d)):
@@ -54,7 +58,7 @@ if __name__ == "__main__":
     else:
       log.warning("File '%s' does not exist, it will be created" % str(statefile_name))
       with open(statefile_name, 'a'):
-        os.utime(statefile_name, times)
+        os.utime(statefile_name, None)
 
   log.info("Game data verified")
 
