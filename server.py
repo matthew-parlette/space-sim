@@ -38,7 +38,7 @@ if __name__ == "__main__":
   # Top level directories
   dirs = ['universe','universe/sectors']
   # Sectors
-  dirs += ['universe/sectors/' + str(s) for s in range(1,11)]
+  dirs += ['universe/sectors/' + str(sector) for sector in range(1,11)]
 
   # Verify directory and statefile exists
   for d in dirs:
