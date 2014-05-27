@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import sys
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -30,5 +31,31 @@ if __name__ == "__main__":
   log.addHandler(fh)
 
   log.info("Initializing")
+
+  # Verify data directory structure
+  log.info("Verifying game data")
+
+  dirs = ['universe']
+
+  for d in dirs:
+    log.debug("Verifying '%s' path" % str(d))
+    if os.path.isdir(str(d)):
+      log.debug("Path '%s' exists" % str(d))
+    else:
+      log.warning("Path '%s' does not exist, it will be created" % str(d))
+      try:
+        os.makedirs(str(d))
+      except:
+        log.critical("Path '%s' could not be created" % str(d))
+        sys.exit(1)
+    statefile_name = "%s/state.json" % str(d)
+    if os.path.exists(statefile_name):
+      log.debug("File '%s' exists" % str(statefile_name))
+    else:
+      log.warning("File '%s' does not exist, it will be created" % str(statefile_name))
+      with open(statefile_name, 'a'):
+        os.utime(statefile_name, times)
+
+  log.info("Game data verified")
 
   log.info("Shutting Down")
