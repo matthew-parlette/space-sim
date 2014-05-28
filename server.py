@@ -7,6 +7,45 @@ import sys
 import socket
 import json
 
+class Server(object):
+  def __init__(self,log = None):
+    self.log = log if log else logging
+    log.info("Server:__init__:Initializing")
+
+    # Verify data directory structure
+    log.info("Server:__init__:Verifying game data")
+
+    # Top level directories
+    dirs = ['universe','universe/sectors','universe/players']
+
+    # Verify directory and statefile exists
+    map(self.verify_dir,dirs)
+
+    log.info("Server:__init__:Game data verified")
+
+  def verify_dir(self,dir):
+    """Verify that the directory exists and has a statefile.
+
+    If it does not exist or the statefile is missing, it is created."""
+
+    log.debug("Server:verify_dir:Verifying '%s' path" % str(dir))
+    if os.path.isdir(str(dir)):
+      log.debug("Server:verify_dir:Path '%s' exists" % str(dir))
+    else:
+      log.warning("Server:verify_dir:Path '%s' does not exist, it will be created" % str(dir))
+      try:
+        os.makedirs(str(dir))
+      except:
+        log.critical("Server:verify_dir:Path '%s' could not be created" % str(dir))
+        sys.exit(1)
+    statefile_name = "%s/state.json" % str(dir)
+    if os.path.exists(statefile_name):
+      log.debug("Server:verify_dir:File '%s' exists" % str(statefile_name))
+    else:
+      log.warning("Server:verify_dir:File '%s' does not exist, it will be created" % str(statefile_name))
+      with open(statefile_name, 'a'):
+        os.utime(statefile_name, None)
+
 def parse_request(log,request_in):
   log.debug("Loading request as json")
   request = json.loads(request_in)
@@ -45,37 +84,11 @@ if __name__ == "__main__":
   fh.setFormatter(formatter)
   log.addHandler(fh)
 
-  log.info("Initializing")
+  log.debug("Creating Server object")
+  server = Server(log = log)
 
-  # Verify data directory structure
-  log.info("Verifying game data")
-
-  # Top level directories
-  dirs = ['universe','universe/sectors']
   # Sectors
-  dirs += ['universe/sectors/' + str(sector) for sector in range(1,11)]
-
-  # Verify directory and statefile exists
-  for d in dirs:
-    log.debug("Verifying '%s' path" % str(d))
-    if os.path.isdir(str(d)):
-      log.debug("Path '%s' exists" % str(d))
-    else:
-      log.warning("Path '%s' does not exist, it will be created" % str(d))
-      try:
-        os.makedirs(str(d))
-      except:
-        log.critical("Path '%s' could not be created" % str(d))
-        sys.exit(1)
-    statefile_name = "%s/state.json" % str(d)
-    if os.path.exists(statefile_name):
-      log.debug("File '%s' exists" % str(statefile_name))
-    else:
-      log.warning("File '%s' does not exist, it will be created" % str(statefile_name))
-      with open(statefile_name, 'a'):
-        os.utime(statefile_name, None)
-
-  log.info("Game data verified")
+  # dirs += ['universe/sectors/' + str(sector) for sector in range(1,11)]
 
   log.info("Starting TCP server")
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
