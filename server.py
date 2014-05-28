@@ -46,18 +46,18 @@ class Server(object):
       with open(statefile_name, 'a'):
         os.utime(statefile_name, None)
 
-def parse_request(log,request_in):
-  log.debug("Loading request as json")
-  request = json.loads(request_in)
-  log.info("Loaded json as %s" % str(request))
-  response = {}
-  if request['action'] == "login":
-    log.info("Detected login action")
-    response['result'] = "success"
-  else:
-    response['result'] = "failure"
-  log.info("Response is %s" % str(response))
-  return json.dumps(response)
+  def parse_request(self,request_in):
+    self.log.debug("Server:parse_request:Loading request as json")
+    request = json.loads(request_in)
+    self.log.info("Server:parse_request:Loaded json as %s" % str(request))
+    response = {}
+    if request['action'] == "login":
+      self.log.info("Server:parse_request:Detected login action")
+      response['result'] = "success"
+    else:
+      response['result'] = "failure"
+    self.log.info("Server:parse_request:Response is %s" % str(response))
+    return json.dumps(response)
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -84,25 +84,25 @@ if __name__ == "__main__":
   fh.setFormatter(formatter)
   log.addHandler(fh)
 
-  log.debug("Creating Server object")
+  log.debug("__main__:Creating Server object")
   server = Server(log = log)
 
   # Sectors
   # dirs += ['universe/sectors/' + str(sector) for sector in range(1,11)]
 
-  log.info("Starting TCP server")
+  log.info("__main__:Starting TCP server")
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
   s.bind(('0.0.0.0',10344))
-  log.info("Listening for connections")
+  log.info("__main__:Listening for connections")
   s.listen(1)
 
   conn, addr = s.accept()
-  log.info("Received connection from %s" % str(addr))
+  log.info("__main__:Received connection from %s" % str(addr))
   while 1:
     data = conn.recv(1024)
     if not data: break
-    log.info("Received data: %s" % data)
-    conn.send(parse_request(log,data))
+    log.info("__main__:Received data: %s" % data)
+    conn.send(server.parse_request(data))
   conn.close()
 
-  log.info("Shutting Down")
+  log.info("__main__:Shutting Down")
