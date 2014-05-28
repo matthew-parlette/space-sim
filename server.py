@@ -20,11 +20,14 @@ class Server(object):
     map(self.verify_dir,dirs)
 
     # Verify sectors
-    sector_dirs = ['universe/sectors/' + str(sector) for sector in range(1,num_sectors + 1)]
+    sector_dirs = ['universe/sectors/' + str(sector)
+      for sector in range(1,num_sectors + 1)]
     map(self.verify_dir,sector_dirs)
 
     # Verify players
-
+    player_dirs = ['universe/players/' + str(player)
+      for player in os.listdir('universe/players')
+      if os.path.isdir(os.path.join('universe/players/',player))]
 
     log.info("Server:__init__:Game data verified")
 
