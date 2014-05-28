@@ -28,6 +28,7 @@ class Server(object):
     player_dirs = ['universe/players/' + str(player)
       for player in os.listdir('universe/players')
       if os.path.isdir(os.path.join('universe/players/',player))]
+    map(self.verify_dir,player_dirs)
 
     log.info("Server:__init__:Game data verified")
 
