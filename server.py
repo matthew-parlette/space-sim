@@ -8,18 +8,23 @@ import socket
 import json
 
 class Server(object):
-  def __init__(self,log = None):
+  def __init__(self,log = None,num_sectors = 10):
     self.log = log if log else logging
     log.info("Server:__init__:Initializing")
 
     # Verify data directory structure
     log.info("Server:__init__:Verifying game data")
 
-    # Top level directories
+    # Verify top level directories
     dirs = ['universe','universe/sectors','universe/players']
-
-    # Verify directory and statefile exists
     map(self.verify_dir,dirs)
+
+    # Verify sectors
+    sector_dirs = ['universe/sectors/' + str(sector) for sector in range(1,num_sectors + 1)]
+    map(self.verify_dir,sector_dirs)
+
+    # Verify players
+
 
     log.info("Server:__init__:Game data verified")
 
@@ -86,9 +91,6 @@ if __name__ == "__main__":
 
   log.debug("__main__:Creating Server object")
   server = Server(log = log)
-
-  # Sectors
-  # dirs += ['universe/sectors/' + str(sector) for sector in range(1,11)]
 
   log.info("__main__:Starting TCP server")
   s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
