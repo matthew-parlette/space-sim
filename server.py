@@ -45,7 +45,7 @@ class Player(GameEntity):
   properties = dict(GameEntity.properties.items() + Player_properties.items())
 
   def __repr__(self):
-    return "%s (%s)" % (getattr(self,"name"),getattr(self,"sector","undef"))
+    return "%s (%s)" % (getattr(self,"name"),getattr(self,"sector","undefined"))
 
 class Server(object):
   def __init__(self,log = None,num_sectors = 10):
