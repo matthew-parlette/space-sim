@@ -10,33 +10,33 @@ import json
 class GameEntity(object):
   # Properties of this entity, with default values
   properties = {'name':'entity'}
-  def __init__(self,log = None,load_from_json = None):
+  def __init__(self,log = None,load_state = None):
     self.log = log if log else logging
     self.log.debug("GameEntity:__init__:JSON received as %s"
-      % str(load_from_json))
-    if load_from_json:
+      % str(load_state))
+    if load_state:
       self.log.debug("GameEntity:__init__:Loading object from JSON")
-      self.load_from_json(load_from_json)
+      self.load_state(load_state)
 
   def __repr__(self):
     return getattr(self,"name")
 
-  def load_from_json(self,json_string):
+  def load_state(self,state):
     """Return the object represented by a json string."""
-    self.log.debug("GameEntity:load_from_json:Received json_string as %s" % json_string)
-    json_obj = json.loads(json_string)
+    self.log.debug("GameEntity:load_state:Received json_string as %s" % state)
+    json_state = json.loads(state)
     for key,default in self.__class__.properties.iteritems():
-      self.log.debug("GameEntity:load_from_json:Processing property %s" % str(key))
-      if key in json_obj:
-        setattr(self,key,json_obj[key])
+      self.log.debug("GameEntity:load_state:Processing property %s" % str(key))
+      if key in json_state:
+        setattr(self,key,json_state[key])
       else:
-        self.log.warning("GameEntity:load_from_json:Key %s does not exist for object, defaulting to %s"
+        self.log.warning("GameEntity:load_state:Key %s does not exist for object, defaulting to %s"
           % (str(key),str(default)))
         setattr(self,key,default)
-    self.log.debug("GameEntity:load_from_json:Loaded object as %s" % str(self))
+    self.log.debug("GameEntity:load_state:Loaded object as %s" % str(self))
     return self
 
-  def save_as_json(self):
+  def save_state(self):
     """Return a json string representing this object."""
     raise NotImplementedError
 
@@ -144,7 +144,7 @@ class Server(object):
     else:
       self.log.warning("Server:load_user:User directory does not exist, creating user %s"
         % username)
-      player = Player(log = self.log, load_from_json = "{\"name\":\"%s\"}" % username)
+      player = Player(log = self.log, load_state = "{\"name\":\"%s\"}" % username)
       return player
     return None
 
