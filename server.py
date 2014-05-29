@@ -8,7 +8,8 @@ import socket
 import json
 
 class GameEntity(object):
-  properties = ['name']
+  # Properties of this entity, with default values
+  properties = {'name':'entity'}
   def __init__(self,log = None,load_from_json = None):
     self.log = log if log else logging
     self.log.debug("GameEntity:__init__:JSON received as %s"
@@ -24,17 +25,27 @@ class GameEntity(object):
     """Return the object represented by a json string."""
     self.log.debug("GameEntity:load_from_json:Received json_string as %s" % json_string)
     json_obj = json.loads(json_string)
-    for key in GameEntity.properties:
+    for key,default in self.__class__.properties.iteritems():
+      self.log.debug("GameEntity:load_from_json:Processing property %s" % str(key))
       if key in json_obj:
         setattr(self,key,json_obj[key])
-    self.log.debug("GameEntity:load_from_json:Loaded name as %s" % self.name)
+      else:
+        self.log.warning("GameEntity:load_from_json:Key %s does not exist for object, defaulting to %s"
+          % (str(key),str(default)))
+        setattr(self,key,default)
+    self.log.debug("GameEntity:load_from_json:Loaded object as %s" % str(self))
+    return self
 
   def save_as_json(self):
     """Return a json string representing this object."""
     raise NotImplementedError
 
 class Player(GameEntity):
-  properties = GameEntity.properties
+  Player_properties = {'sector':'1'}
+  properties = dict(GameEntity.properties.items() + Player_properties.items())
+
+  def __repr__(self):
+    return "%s (%s)" % (getattr(self,"name"),getattr(self,"sector","undef"))
 
 class Server(object):
   def __init__(self,log = None,num_sectors = 10):
@@ -103,10 +114,12 @@ class Server(object):
     if request['action'] == "login":
       self.log.info("Server:parse_request:Detected login action")
       if 'user' in request:
-        if self.load_user(request['user']):
-          self.log.info("Server:parse_request:User %s loaded" % request['user'])
+        player = self.load_user(request['user'])
+        self.log.debug("Server:parse_request:load_user returned %s" % player)
+        if player:
+          self.log.info("Server:parse_request:Player %s loaded" % player)
         else:
-          self.log.error("Server:parse_request:User %s could not be found or created"
+          self.log.error("Server:parse_request:Player %s could not be found or created"
             % request['user'])
       else:
         self.log.error("Server:parse_request:User not provided in request")
@@ -132,6 +145,7 @@ class Server(object):
       self.log.warning("Server:load_user:User directory does not exist, creating user %s"
         % username)
       player = Player(log = self.log, load_from_json = '{"name":"matt"}')
+      return player
     return None
 
 if __name__ == "__main__":
