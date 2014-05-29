@@ -144,7 +144,7 @@ class Server(object):
     else:
       self.log.warning("Server:load_user:User directory does not exist, creating user %s"
         % username)
-      player = Player(log = self.log, load_from_json = '{"name":"matt"}')
+      player = Player(log = self.log, load_from_json = "{\"name\":\"%s\"}" % username)
       return player
     return None
 
