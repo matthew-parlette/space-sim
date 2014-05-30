@@ -9,14 +9,16 @@ import json
 
 class GameEntity(object):
   # Properties of this entity, with default values
-  properties = {'name':'entity'}
-  def __init__(self,log = None,load_state = None):
+  properties = {}
+  def __init__(self,name,log = None,load_state = None):
     self.log = log if log else logging
     self.log.debug("GameEntity:__init__:JSON received as %s"
       % str(load_state))
-    if load_state:
-      self.log.debug("GameEntity:__init__:Loading object from JSON")
-      self.load_state(load_state)
+    self.name = name
+    self.log.debug("GameEntity:__init__:Initializing object %s" % self.name)
+    # if load_state:
+    self.log.debug("GameEntity:__init__:Loading object from JSON")
+    self.load_state(load_state)
 
   def __repr__(self):
     return getattr(self,"name")
@@ -24,7 +26,7 @@ class GameEntity(object):
   def load_state(self,state):
     """Return the object represented by a json string."""
     self.log.debug("GameEntity:load_state:Received json_string as %s" % state)
-    json_state = json.loads(state)
+    json_state = json.loads(state) if len(state) > 0 else {}
     for key,default in self.__class__.properties.iteritems():
       self.log.debug("GameEntity:load_state:Processing property %s" % str(key))
       if key in json_state:
@@ -38,11 +40,14 @@ class GameEntity(object):
 
   def save_state(self):
     """Return a json string representing this object."""
-    raise NotImplementedError
+    state = {}
+    for prop in self.__class__.properties.keys():
+      state[prop] = getattr(self,prop)
+    return json.dumps(state)
 
 class Player(GameEntity):
-  Player_properties = {'sector':'1'}
-  properties = dict(GameEntity.properties.items() + Player_properties.items())
+  properties = {'sector':'1'}
+  # properties = dict(GameEntity.properties.items() + Player.Player_properties.items())
 
   def __repr__(self):
     return "%s (%s)" % (getattr(self,"name"),getattr(self,"sector","undefined"))
@@ -135,18 +140,29 @@ class Server(object):
     If the user does not exist, it will be created."""
 
     self.log.debug("Server:load_user:Finding user %s" % username)
+    player = None
 
     if self.verify_dir(os.path.join('universe/players/',username),
-      create_if_absent = False):
+      create_if_absent = True):
       self.log.debug("Server:load_user:User directory exists with statefile")
       # Load the user and return the object
+      with open(os.path.join('universe/players',username,'state.json'),'r') as statefile:
+        player = Player(username,log = self.log, load_state = statefile.read())
 
     else:
       self.log.warning("Server:load_user:User directory does not exist, creating user %s"
         % username)
-      player = Player(log = self.log, load_state = "{\"name\":\"%s\"}" % username)
+      player = Player(username,log = self.log, load_state = "{}")
+
+    if player:
+      self.save_state(os.path.join('universe/players',player.name,'state.json'),player.save_state())
       return player
     return None
+
+  def save_state(self,filename = None,state = ""):
+    with open(filename,'w+') as statefile:
+      statefile.write(state)
+
 
 if __name__ == "__main__":
   # Parse command line arguments
