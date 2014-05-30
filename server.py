@@ -12,12 +12,8 @@ class GameEntity(object):
   properties = {}
   def __init__(self,name,log = None,load_state = None):
     self.log = log if log else logging
-    self.log.debug("GameEntity:__init__:JSON received as %s"
-      % str(load_state))
     self.name = name
     self.log.debug("GameEntity:__init__:Initializing object %s" % self.name)
-    # if load_state:
-    self.log.debug("GameEntity:__init__:Loading object from JSON")
     self.load_state(load_state)
 
   def __repr__(self):
