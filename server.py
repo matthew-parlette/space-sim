@@ -9,18 +9,35 @@ import json
 
 class GameEntity(object):
   # Properties of this entity, with default values
-  properties = {}
-  def __init__(self,name,log = None,load_state = None):
+  properties = {'name':'entity'}
+  def __init__(self,state_path = None,log = None,state = None):
     self.log = log if log else logging
-    self.name = name
-    self.log.debug("GameEntity:__init__:Initializing object %s" % self.name)
-    self.load_state(load_state)
+    self.state_path = state_path
+    self.log.debug("GameEntity:__init__:Initializing object")
+
+    # Create directories if they don't exist
+    if not os.path.exists(os.path.dirname(self.state_path)):
+      os.makedirs(os.path.dirname(self.state_path))
+
+    # Create statefile if it doesn't exist
+    if not os.path.exists(self.state_path):
+      with open(self.state_path, 'a'):
+        os.utime(self.state_path, None)
+
+    # Load the entity state
+    if not state:
+      with open (self.state_path, "r") as state_file:
+        state = state_file.read() #.replace('\n', '')
+    self.load_state(state)
 
   def __repr__(self):
     return getattr(self,"name")
 
   def load_state(self,state):
-    """Return the object represented by a json string."""
+    """Return the object represented by a json string.
+
+    For any property to be loaded, it will be set to a default
+     value if it does not exist."""
     self.log.debug("GameEntity:load_state:Received json_string as %s" % state)
     json_state = json.loads(state) if len(state) > 0 else {}
     for key,default in self.__class__.properties.iteritems():
@@ -28,13 +45,24 @@ class GameEntity(object):
       if key in json_state:
         setattr(self,key,json_state[key])
       else:
-        self.log.warning("GameEntity:load_state:Key %s does not exist for object, defaulting to %s"
-          % (str(key),str(default)))
-        setattr(self,key,default)
+        if key == "name": # Name is a special default
+          setattr(self,key,os.path.dirname(self.state_path).split("/")[-1])
+          self.log.warning("GameEntity:load_state:Name does not exist for object, setting to parent directory %s"
+            % getattr(self,key))
+        else:
+          self.log.warning("GameEntity:load_state:Key %s does not exist for object, defaulting to %s"
+            % (str(key),str(default)))
+          setattr(self,key,default)
     self.log.debug("GameEntity:load_state:Loaded object as %s" % str(self))
     return self
 
   def save_state(self):
+    """Save the current state of this object to state_path."""
+
+    with open(self.state_path,'w+') as statefile:
+      statefile.write(self.state())
+
+  def state(self):
     """Return a json string representing this object."""
     state = {}
     for prop in self.__class__.properties.keys():
@@ -42,7 +70,7 @@ class GameEntity(object):
     return json.dumps(state)
 
 class Player(GameEntity):
-  properties = {'sector':'1'}
+  properties = {'name':'player','sector':'1'}
   # properties = dict(GameEntity.properties.items() + Player.Player_properties.items())
 
   def __repr__(self):
@@ -58,54 +86,20 @@ class Server(object):
 
     # Verify top level directories
     dirs = ['universe','universe/sectors','universe/players']
-    map(self.verify_dir,dirs)
+    # map(self.verify_dir,dirs)
 
     # Verify sectors
     sector_dirs = ['universe/sectors/' + str(sector)
       for sector in range(1,num_sectors + 1)]
-    map(self.verify_dir,sector_dirs)
+    # map(self.verify_dir,sector_dirs)
 
     # Verify players
     player_dirs = ['universe/players/' + str(player)
       for player in os.listdir('universe/players')
       if os.path.isdir(os.path.join('universe/players/',player))]
-    map(self.verify_dir,player_dirs)
+    # map(self.verify_dir,player_dirs)
 
     log.info("Server:__init__:Game data verified")
-
-  def verify_dir(self,dir,create_if_absent = True):
-    """Verify that the directory exists and has a statefile.
-
-    If it does not exist or the statefile is missing, it is created."""
-
-    log.debug("Server:verify_dir:Verifying '%s' path" % str(dir))
-    if os.path.isdir(str(dir)):
-      log.debug("Server:verify_dir:Path '%s' exists" % str(dir))
-    else:
-      if create_if_absent:
-        log.warning("Server:verify_dir:Path '%s' does not exist, it will be created" % str(dir))
-        try:
-          os.makedirs(str(dir))
-        except:
-          log.critical("Server:verify_dir:Path '%s' could not be created" % str(dir))
-          sys.exit(1)
-      else:
-        log.warning("Server:verify_dir:Path '%s' does not exist, but create_if_absent is %s"
-          % (str(dir),str(create_if_absent)))
-        return False
-    statefile_name = "%s/state.json" % str(dir)
-    if os.path.exists(statefile_name):
-      log.debug("Server:verify_dir:File '%s' exists" % str(statefile_name))
-    else:
-      if create_if_absent:
-        log.warning("Server:verify_dir:File '%s' does not exist, it will be created" % str(statefile_name))
-        with open(statefile_name, 'a'):
-          os.utime(statefile_name, None)
-      else:
-        log.warning("Server:verify_dir:Path '%s' does not exist, but create_if_absent is %s"
-          % (str(dir),str(create_if_absent)))
-        return False
-    return True
 
   def parse_request(self,request_in):
     self.log.debug("Server:parse_request:Loading request as json")
@@ -136,29 +130,14 @@ class Server(object):
     If the user does not exist, it will be created."""
 
     self.log.debug("Server:load_user:Finding user %s" % username)
-    player = None
+    player = None # TODO Move verify_dir to entity?
 
-    if self.verify_dir(os.path.join('universe/players/',username),
-      create_if_absent = True):
-      self.log.debug("Server:load_user:User directory exists with statefile")
-      # Load the user and return the object
-      with open(os.path.join('universe/players',username,'state.json'),'r') as statefile:
-        player = Player(username,log = self.log, load_state = statefile.read())
-
-    else:
-      self.log.warning("Server:load_user:User directory does not exist, creating user %s"
-        % username)
-      player = Player(username,log = self.log, load_state = "{}")
+    player = Player(os.path.join('universe/players',username,'state.json'),log = self.log)
 
     if player:
-      self.save_state(os.path.join('universe/players',player.name,'state.json'),player.save_state())
+      player.save_state()
       return player
     return None
-
-  def save_state(self,filename = None,state = ""):
-    with open(filename,'w+') as statefile:
-      statefile.write(state)
-
 
 if __name__ == "__main__":
   # Parse command line arguments
