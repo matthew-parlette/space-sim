@@ -81,23 +81,27 @@ class Server(object):
     self.log = log if log else logging
     log.info("Server:__init__:Initializing")
 
-    # Verify data directory structure
-    log.info("Server:__init__:Verifying game data")
+    # Build universe reference objects
+    log.info("Server:__init__:Building reference objects")
 
-    # Verify top level directories
-    dirs = ['universe','universe/sectors','universe/players']
-    # map(self.verify_dir,dirs)
+    ## Sector references
+    log.debug("Server:__init__:Building sector reference")
+    self.sectors = {str(sector): 'universe/sectors/' + str(sector)
+      for sector in range(1,num_sectors + 1)}
+    log.debug("Server:__init__:Sector reference loaded, keys are %s"
+      % str(self.sectors.keys()))
 
-    # Verify sectors
-    sector_dirs = ['universe/sectors/' + str(sector)
-      for sector in range(1,num_sectors + 1)]
-    # map(self.verify_dir,sector_dirs)
-
-    # Verify players
-    player_dirs = ['universe/players/' + str(player)
-      for player in os.listdir('universe/players')
-      if os.path.isdir(os.path.join('universe/players/',player))]
-    # map(self.verify_dir,player_dirs)
+    ## Player references
+    log.debug("Server:__init__:Building player reference")
+    if os.path.exists('universe/players'):
+      self.players = {str(player): 'universe/players/' + str(player)
+        for player in os.listdir('universe/players')
+        if os.path.isdir(os.path.join('universe/players/',player))}
+    else:
+      log.debug("Server:__init__:universe/players was not found no players loaded")
+      self.players = {}
+    log.debug("Server:__init__:Player reference loaded, keys are %s"
+      % str(self.players.keys()))
 
     log.info("Server:__init__:Game data verified")
 
