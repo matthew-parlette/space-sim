@@ -76,6 +76,12 @@ class Player(GameEntity):
   def __repr__(self):
     return "%s (%s)" % (getattr(self,"name"),getattr(self,"sector","undefined"))
 
+class Sector(GameEntity):
+  properties = {'name':'sector','region':'unexplored'}
+
+  def __repr__(self):
+    return "%s (%s region)" % (getattr(self,"name"),getattr(self,"region"))
+
 class Server(object):
   def __init__(self,log = None,num_sectors = 10):
     self.log = log if log else logging
