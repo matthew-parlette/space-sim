@@ -6,10 +6,13 @@ import os
 import sys
 import socket
 import json
+import SocketServer
 
 class GameEntity(object):
   # Properties of this entity, with default values
   properties = {'name':'entity'}
+
+  # TODO: save on change
   def __init__(self,state_path = None,log = None,state = None):
     self.log = log if log else logging
     self.state_path = state_path
@@ -60,14 +63,24 @@ class GameEntity(object):
     """Save the current state of this object to state_path."""
 
     with open(self.state_path,'w+') as statefile:
-      statefile.write(self.state())
+      statefile.write(self.state_json())
 
-  def state(self):
+  def state_json(self):
     """Return a json string representing this object."""
     state = {}
     for prop in self.__class__.properties.keys():
       state[prop] = getattr(self,prop)
     return json.dumps(state)
+
+  def update(self,property,value):
+    """Update a property with a specified value.
+
+    This also saves the state to the file, and is the preferred
+     method of updating a state property."""
+    if value is not None and hasattr(self,property):
+      self.debug("GameEntity:update:Setting %s to %s" % (property,value))
+      setattr(self,property,value)
+      self.save_state()
 
 class Player(GameEntity):
   properties = {'name':'player','sector':'1'}
@@ -81,6 +94,18 @@ class Sector(GameEntity):
 
   def __repr__(self):
     return "%s (%s region)" % (getattr(self,"name"),getattr(self,"region"))
+
+class TCPServer(SocketServer.StreamRequestHandler):
+  def handle(self,log = None,server = None):
+    self.data = self.rfile.readline().strip()
+    if log:
+      log.debug("{} wrote:".format(self.client_address[0]))
+      log.debug(self.data)
+    if server:
+      response = server.parse_request(self.data)
+      self.wfile.write(response)
+    else:
+      self.wfile.write("Server not initialized")
 
 class Server(object):
   def __init__(self,log = None,num_sectors = 10):
@@ -112,9 +137,15 @@ class Server(object):
     log.info("Server:__init__:Game data verified")
 
   def parse_request(self,request_in):
+    # TODO: return more useful response
+    # TODO: move request
     self.log.debug("Server:parse_request:Loading request as json")
-    request = json.loads(request_in)
-    self.log.info("Server:parse_request:Loaded json as %s" % str(request))
+    try:
+      request = json.loads(request_in)
+      self.log.info("Server:parse_request:Loaded json as %s" % str(request))
+    except:
+      self.log.error("Server:parse_request:Unable to parse json")
+      return json.dumps({"result": "failure", "error": "unable to parse json"})
     response = {}
     if request['action'] == "login":
       self.log.info("Server:parse_request:Detected login action")
@@ -131,6 +162,7 @@ class Server(object):
       response['result'] = "success"
     else:
       response['result'] = "failure"
+      response['error'] = "action not recognized"
     self.log.info("Server:parse_request:Response is %s" % str(response))
     return json.dumps(response)
 
@@ -187,18 +219,8 @@ if __name__ == "__main__":
     log.info("__main__:Test result is %s" % str(result))
   else:
     log.info("__main__:Starting TCP server")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(('0.0.0.0',10344))
-    log.info("__main__:Listening for connections")
-    s.listen(1)
-
-    conn, addr = s.accept()
-    log.info("__main__:Received connection from %s" % str(addr))
-    while 1:
-      data = conn.recv(1024)
-      if not data: break
-      log.info("__main__:Received data: %s" % data)
-      conn.send(server.parse_request(data))
-    conn.close()
+    host, port = "localhost", 10344
+    server = SocketServer.TCPServer((host,port), TCPServer)
+    server.serve_forever()
 
   log.info("__main__:Shutting Down")
