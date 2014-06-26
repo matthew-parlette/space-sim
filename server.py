@@ -5,27 +5,31 @@ import logging
 import os
 import pickle
 import glob
+from uuid import uuid4
 
 log = None
 
-class Sector(object):
+class Entity(object):
+  """Entity base class"""
+  def __init__(self, name, id = uuid4()):
+    # super(Entity, self).__init__()
+    self.id = id
+    self.name = name
+
+  def __hash__(self):
+    return hash(self.id)
+
+  def __repr__(self):
+    return "%s %s" % (self.__class__.__name__,self.name)
+
+class Sector(Entity):
   """Sector object"""
   def __init__(self, name, warps = []):
-    # super(Sector, self).__init__()
-    self.name = name
+    super(Sector, self).__init__(name = name,id = name)
     self.warps = warps
-
-  def __eq__(self,other):
-    if other.__class__.__name__ == "Sector":
-      if self.name == other.name:
-        return True
-    return False
 
   def __hash__(self):
     return hash(self.name)
-
-  def __repr__(self):
-    return "Sector %s" % self.name
 
   def add_warp(self, sector_id):
     if sector_id not in self.warps:
