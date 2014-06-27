@@ -54,9 +54,26 @@ class Server(object):
     self.entities_path = os.path.join(path,"universe/entities")
     if not os.path.exists(self.sectors_path): os.makedirs(self.sectors_path)
     if not os.path.exists(self.entities_path): os.makedirs(self.entities_path)
-    self.load_sectors(self.sectors_path)
-    self.load_entities(self.entities_path)
+    self.load_all_files(self.base_path)
+    # self.load_sectors(self.sectors_path)
+    # self.load_entities(self.entities_path)
     self.log.debug("Server initialized, %i sectors loaded" % len(self.sectors))
+
+  def clear_cache(self):
+    self.log.debug("Clearing cache")
+    self.sectors = {}
+    self.entities = {}
+
+  def add_to_cache(self,entity,path):
+    self.log.debug("Adding %s to cache" % str(entity))
+    if entity.__class__.__name__ == "Sector":
+      if entity not in self.sectors.keys():
+        self.log.debug("Adding sector (%s) to sectors list" % entity)
+        self.sectors[entity] = path
+    else:
+      if entity not in self.entities.keys():
+        self.log.debug("Adding entity (%s) to entities list" % entity)
+        self.entities[entity] = path
 
   def sector_map(self):
     """Return a string of the universe sector layout"""
@@ -65,14 +82,20 @@ class Server(object):
       result += "%s => %s\n" % (str(s),str(s.warps))
     return result
 
-  def get(self, name = None):
+  def get(self, name = None, sector = None):
     """Multi-use get method.
 
     Will return an object if found. Searching is done based on parameters."""
     if name:
-      for e in self.entities:
+      for e in self.entities.keys():
         if e.name == name:
           return e
+
+    if sector:
+      for s in self.sectors.keys():
+        if s.name == sector:
+          return s
+
     return None
 
   def create_entity(self, entity):
@@ -80,13 +103,13 @@ class Server(object):
       if entity not in self.sectors:
         self.log.debug("Adding %s to sectors" % entity)
         self.sectors[entity] = os.path.join(self.sectors_path,"%s.pickle" % entity.id)
-        self.save_entity(entity,self.sectors[entity])
+        assert self.save_entity(entity)
       self.log.debug("Added sector, %i sectors currently loaded" % len(self.sectors))
       return True
     else:
       if entity not in self.entities:
         self.entities[entity] = os.path.join(self.entities_path,"%s.pickle" % entity.id)
-        self.save_entity(entity,self.entities[entity])
+        assert self.save_entity(entity)
       self.log.debug("Added entity, %i entities currently loaded" % len(self.entities))
       return True
     return False
@@ -101,8 +124,7 @@ class Server(object):
     files = glob.glob(os.path.join(self.entities_path,'*'))
     for f in files:
       os.remove(f)
-    self.load_sectors(self.sectors_path) # Should clear the sector list
-    self.load_entities(self.entities_path) # Should clear the entities list
+    self.clear_cache()
     self.log.info("Adding sectors")
     s1 = Sector("1",warps = ['2','3','4','5'])
     s2 = Sector("2",warps = ['1','3','4','5'])
@@ -116,36 +138,44 @@ class Server(object):
     self.create_entity(s4)
     self.create_entity(s5)
 
-  def save_entity(self,entity,filename):
+  def save_entity(self,entity):
+    if entity in self.sectors:
+      filename = self.sectors[entity]
+    elif entity in self.entities:
+      filename = self.entities[entity]
+    else:
+      return False
     pickle.dump( entity, open( filename, "wb" ) )
     return True
 
   def load_entity(self,filename):
     return pickle.load( open( filename, "rb" ) )
 
-  def load_sectors(self,path):
-    """Load all sectors in the given path"""
-    self.log.debug("Loading sectors from %s" % path)
-    self.sectors = {}
-    for file in os.listdir(path):
-      if file.endswith(".pickle"):
-        self.log.debug("Loading sector from %s" % file)
-        entity = self.load_entity(os.path.join(path,file))
-        if entity not in self.sectors.keys():
-          self.log.debug("Adding sector (%s) to sectors list" % entity)
-          self.sectors[entity] = os.path.join(path,file)
-
-  def load_entities(self,path):
+  def load_all_files(self,path):
     """Load all entities in the given path"""
-    self.log.debug("Loading entities from %s" % path)
-    self.entities = {}
-    for file in os.listdir(path):
-      if file.endswith(".pickle"):
-        self.log.debug("Loading entity from %s" % file)
-        entity = self.load_entity(os.path.join(path,file))
-        if entity not in self.entities.keys():
-          self.log.debug("Adding entity (%s) to entities list" % entity)
-          self.entities[entity] = os.path.join(path,file)
+    self.log.debug("Clearing cache before loading files")
+    self.clear_cache()
+    self.log.debug("Loading all entities from %s" % path)
+
+    for root,dirs,files in os.walk(path):
+      for d in dirs:
+        for file in files:
+          if file.endswith(".pickle"):
+            path = os.path.join(path,d,file)
+            self.log.debug("Loading entity from %s" % file)
+            entity = self.load_entity(path)
+            self.add_to_cache(entity,path)
+
+  def move(self, name = None, sector = None):
+    """Move a player by the given name to a sector"""
+    if isinstance(sector,str):
+      sector = self.get(sector = sector)
+      self.log.debug("Sector object loaded as %s" % sector)
+    if name and sector:
+      e = self.get(name = name)
+      self.log.debug("Moving (%s) to (%s)" % (e,sector))
+      e.sector = sector.name
+      self.save_entity(e)
 
 if __name__ == "__main__":
   # Parse command line arguments
@@ -187,14 +217,17 @@ if __name__ == "__main__":
     server.big_bang()
     server.create_entity(Player("test player"))
 
-    print "Sector Map\n=========="
-    print server.sector_map()
-
-    print "Game Objects\n============"
-    print "\n".join(str(s.details()) for s in server.entities.keys())
-
     log.info("Running server functionality tests")
     log.info("Checking sector count")
     assert len(server.sectors) == 5
     log.info("Checking player")
     assert server.get(name = "test player").sector == "1"
+    log.info("Moving player")
+    server.move(name = "test player", sector = "2")
+    assert server.get(name = "test player").sector == "2"
+
+    print "Sector Map\n=========="
+    print server.sector_map()
+
+    print "Game Objects\n============"
+    print "\n".join(str(s.details()) for s in server.entities.keys())
