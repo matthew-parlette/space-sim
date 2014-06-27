@@ -40,7 +40,7 @@ class Sector(Entity):
 class Player(Entity):
   """Player class"""
   def __init__(self, name, id = uuid4()):
-    super(Player, self).__init__(name = name, id = name)
+    super(Player, self).__init__(name = name, id = id)
     self.sector = '1'
 
   def details(self):
