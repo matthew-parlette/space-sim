@@ -28,9 +28,6 @@ class Sector(Entity):
     super(Sector, self).__init__(name = name,id = name)
     self.warps = warps
 
-  def __hash__(self):
-    return hash(self.name)
-
   def add_warp(self, sector_id):
     if sector_id not in self.warps:
       self.warps.append(str(sector_id))
