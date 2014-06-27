@@ -22,6 +22,10 @@ class Entity(object):
   def __repr__(self):
     return "%s %s" % (self.__class__.__name__,self.name)
 
+  def details(self):
+    """Return a string with details of this entity"""
+    return str(self)
+
 class Sector(Entity):
   """Sector object"""
   def __init__(self, name, warps = []):
@@ -37,6 +41,10 @@ class Player(Entity):
   """Player class"""
   def __init__(self, name, id = uuid4()):
     super(Player, self).__init__(name = name, id = id)
+    self.sector = '1'
+
+  def details(self):
+    return "%s\n\tCurrently in sector %s" % (str(self),str(self.sector))
 
 class Server(object):
   def __init__(self,path):
@@ -173,4 +181,4 @@ if __name__ == "__main__":
     print server.sector_map()
 
     print "Game Objects\n============"
-    print "\n".join(str(s) for s in server.entities.keys())
+    print "\n".join(str(s.details()) for s in server.entities.keys())
