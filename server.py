@@ -15,6 +15,7 @@ class Entity(object):
     # super(Entity, self).__init__()
     self.id = id
     self.name = name
+    self.parent_id = None
 
   def __hash__(self):
     return hash(self.id)
@@ -25,6 +26,21 @@ class Entity(object):
   def details(self):
     """Return a string with details of this entity"""
     return str(self)
+
+  def parent(self, parent = None):
+    """Returns the parent of this entity.
+
+    If parent is provided, this entity is assigned to the provided parent.
+    parent can be:
+        - Entity
+        - str
+    """
+    if parent:
+      if isinstance(parent,Entity):
+        self.parent_id = str(parent.id)
+      if isinstance(parent,str):
+        self.parent_id = str(parent)
+    return self.parent_id
 
 class Sector(Entity):
   """Sector object"""
@@ -41,10 +57,16 @@ class Player(Entity):
   """Player class"""
   def __init__(self, name, id = uuid4()):
     super(Player, self).__init__(name = name, id = id)
-    self.sector = '1'
+    self.parent('1')
 
   def details(self):
-    return "%s\n\tCurrently in sector %s" % (str(self),str(self.sector))
+    return "%s\n\tCurrently in sector %s" % (str(self),str(self.sector()))
+
+  def sector(self):
+    """Gets the current sector for this player.
+
+    Takes into account the ship or planet the player is on."""
+    return self.parent()
 
 class Server(object):
   def __init__(self,path):
@@ -174,7 +196,7 @@ class Server(object):
     if name and sector:
       e = self.get(name = name)
       self.log.debug("Moving (%s) to (%s)" % (e,sector))
-      e.sector = sector.name
+      e.parent(sector.name)
       self.save_entity(e)
 
 if __name__ == "__main__":
@@ -221,10 +243,10 @@ if __name__ == "__main__":
     log.info("Checking sector count")
     assert len(server.sectors) == 5
     log.info("Checking player")
-    assert server.get(name = "test player").sector == "1"
+    assert server.get(name = "test player").sector() == "1"
     log.info("Moving player")
     server.move(name = "test player", sector = "2")
-    assert server.get(name = "test player").sector == "2"
+    assert server.get(name = "test player").sector() == "2"
 
     print "Sector Map\n=========="
     print server.sector_map()
