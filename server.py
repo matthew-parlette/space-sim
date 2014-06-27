@@ -40,7 +40,7 @@ class Sector(Entity):
 class Player(Entity):
   """Player class"""
   def __init__(self, name, id = uuid4()):
-    super(Player, self).__init__(name = name, id = id)
+    super(Player, self).__init__(name = name, id = name)
     self.sector = '1'
 
   def details(self):
@@ -64,6 +64,16 @@ class Server(object):
     for s in self.sectors.keys():
       result += "%s => %s\n" % (str(s),str(s.warps))
     return result
+
+  def get(self, name = None):
+    """Multi-use get method.
+
+    Will return an object if found. Searching is done based on parameters."""
+    if name:
+      for e in self.entities:
+        if e.name == name:
+          return e
+    return None
 
   def create_entity(self, entity):
     if entity.__class__.__name__ == "Sector":
@@ -173,7 +183,7 @@ if __name__ == "__main__":
     server.big_bang()
 
   if args.test:
-    log.info("Running server functionality tests")
+    log.info("Setting up test universe")
     server.big_bang()
     server.create_entity(Player("test player"))
 
@@ -182,3 +192,9 @@ if __name__ == "__main__":
 
     print "Game Objects\n============"
     print "\n".join(str(s.details()) for s in server.entities.keys())
+
+    log.info("Running server functionality tests")
+    log.info("Checking sector count")
+    assert len(server.sectors) == 5
+    log.info("Checking player")
+    assert server.get(name = "test player").sector == "1"
