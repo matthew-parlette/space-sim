@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import date
 
 ## {{{ http://code.activestate.com/recipes/134892/ (r2)
 class _Getch:
@@ -102,5 +103,7 @@ if __name__ == "__main__":
     fh.setFormatter(formatter)
     log.addHandler(fh)
 
+    log.info("========== START ==========")
+    log.info("\t%s" % date)
     log.info("Initializing menu...")
     menu = Menu(log)
