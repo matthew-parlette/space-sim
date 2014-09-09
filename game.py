@@ -4,12 +4,20 @@ import argparse
 import logging
 import os
 
-class Game(object):
-  """docstring for Game"""
+class Manager(object):
+  """The superclass for all objects that manage other objects.
+
+  Ex: Game object manages the players and sectors."""
   def __init__(self, log = None):
-    super(Game, self).__init__()
+    super(Manager, self).__init__()
     self.log = log
     log.debug("%s initialized" % self.__class__.__name__)
+
+class Game(Manager):
+  """docstring for Game"""
+  def __init__(self, log = None):
+    super(Game, self).__init__(log)
+
 
 if __name__ == "__main__":
   # Parse command line arguments
