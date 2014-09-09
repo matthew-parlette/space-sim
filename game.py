@@ -15,7 +15,7 @@ if __name__ == "__main__":
   # Parse command line arguments
   parser = argparse.ArgumentParser(description='Process command line options.')
   parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
-  parser.add_argument('--version', action='version', version='0')
+  parser.add_argument('--version', action='version', version='0.0')
   args = parser.parse_args()
 
   # Setup logging options
