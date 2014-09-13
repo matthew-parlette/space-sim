@@ -4,43 +4,8 @@ import argparse
 import logging
 import os
 import datetime
-
-## {{{ http://code.activestate.com/recipes/134892/ (r2)
-class _Getch:
-    """Gets a single character from standard input.  Does not echo to the screen."""
-    def __init__(self):
-        try:
-            self.impl = _GetchWindows()
-        except ImportError:
-            self.impl = _GetchUnix()
-
-    def __call__(self): return self.impl()
-
-
-class _GetchUnix:
-    def __init__(self):
-        import tty, sys
-
-    def __call__(self):
-        import sys, tty, termios
-        fd = sys.stdin.fileno()
-        old_settings = termios.tcgetattr(fd)
-        try:
-            tty.setraw(sys.stdin.fileno())
-            ch = sys.stdin.read(1)
-        finally:
-            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
-        return ch
-
-class _GetchWindows:
-    def __init__(self):
-        import msvcrt
-
-    def __call__(self):
-        import msvcrt
-        return msvcrt.getch()
-
-## end of http://code.activestate.com/recipes/134892/ }}}
+import sys
+import menu
 
 class Manager(object):
     """The superclass for all objects that manage other objects.
@@ -57,25 +22,8 @@ class Game(Manager):
         super(Game, self).__init__(log)
         self.log.debug("%s initialized" % self.__class__.__name__)
 
-class Menu(Manager):
-    """docstring for Menu"""
-    def __init__(self, log = None, game = None):
-        super(Menu, self).__init__(log)
-        if game:
-            self.log.debug("Game %s provided on init")
-            self.game = game
-        else:
-            self.log.warn("Game was not provided on init, creating new game...")
-            Game(self.log)
-
-        self.getch = _Getch()
-        self.log.debug("%s initialized" % self.__class__.__name__)
-        self.log.debug("Entering menu loop...")
-        self.loop()
-
-    def loop(self):
-        heading = "Main Menu"
-        print "%s\n%s" % (heading,str("=" * len(heading)))
+    def quit(self):
+        sys.exit(0)
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -106,4 +54,5 @@ if __name__ == "__main__":
     log.info("=========== START ============")
     log.info("  %s" % datetime.datetime.isoformat(datetime.datetime.today()))
     log.info("Initializing menu...")
-    menu = Menu(log)
+    main = menu.MainMenu(log, Game(log))
+    main.display()
