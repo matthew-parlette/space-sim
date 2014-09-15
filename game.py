@@ -7,6 +7,7 @@ import datetime
 import sys
 import menu
 from uuid import uuid4
+from collections import defaultdict
 
 class Entity(object):
     """docstring for Entity"""
@@ -19,19 +20,27 @@ class Entity(object):
 
 class Sector(Entity):
     """docstring for Sector"""
+    id_index = defaultdict(list)
+
     def __init__(self, id, warps = {}):
         super(Sector, self).__init__(id)
         self.warps = warps
+        Sector.id_index[id].append(self)
 
     def __repr__(self):
         return "%s (warps to %s)" % (self.id,
             ','.join(str(warp) for warp in self.warps))
+
+    @classmethod
+    def find(cls,id):
+        return Sector.id_index[id]
 
 class Player(Entity):
     """docstring for Player"""
     def __init__(self, id):
         super(Player, self).__init__(id)
         self.name = id
+        self.sector = 1
 
 class Manager(object):
     """The superclass for all objects that manage other objects.
@@ -57,7 +66,6 @@ class Game(Manager):
         self.players = []
         self.log.info("Executing big bang...")
         self.big_bang()
-
 
     def big_bang(self):
         """Generate sectors for the universe"""
@@ -85,6 +93,21 @@ class Game(Manager):
                 "\n\t".join(str(s) for s in self.sectors)
             )
         )
+
+    def get(self,id):
+        """Get an object from the game.
+
+        Search List:
+            Sector
+            Player
+        """
+        self.log.debug("Searching for object with id %s" % str(id))
+        obj = Sector.find(id)
+        if obj:
+            self.log.debug("Found sector %s" % str(obj))
+            return obj
+        else:
+            self.log.debug("No sector id %s found" % str(id))
 
     def quit(self):
         sys.exit(0)

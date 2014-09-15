@@ -88,5 +88,33 @@ class NewGameMenu(Menu):
 
     def start(self):
         self.game.start()
-        self.game.quit()
-        # SectorMenu(self.log,self.game).display()
+        SectorMenu(self.log,self.game).display()
+
+class SectorMenu(Menu):
+    """docstring for SectorMenu"""
+    def __init__(self, log, game):
+        options = {
+            'q': "quit",
+            'm': "move"
+        }
+        super(SectorMenu, self).__init__(
+            log = log,
+            game = game,
+            heading = "Sector",
+            options = options
+        )
+
+    def pre_prompt_hook(self):
+        padding = 8
+        player = self.game.players.pop()
+        self.log.debug("Using player %s" % str(player))
+        current = self.game.get(player.sector).pop()
+        self.log.debug("Current sector is %s" % str(current.id))
+        print "%s: %s" % (
+            "Sector".ljust(padding),
+            str(current.id)
+        )
+        print "%s: %s" % (
+            "Warps".ljust(padding),
+            ", ".join(str(w) for w in current.warps)
+        )
