@@ -79,7 +79,7 @@ class Game(Manager):
     def start(self):
         """Start the game"""
         self.log.info("Starting game %s..." % self.id)
-        self.log.info("Players:\n\t%s\nSector Map:\n\t%s\n" %
+        self.log.info("\nPlayers:\n\t%s\nSector Map:\n\t%s\n" %
             (
                 "\n\t".join(str(p) for p in self.players),
                 "\n\t".join(str(s) for s in self.sectors)

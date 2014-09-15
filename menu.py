@@ -30,6 +30,8 @@ class Menu(object):
                 print "  %s: %s" % (key,value)
             print self.prompt,
             selection = self.getch()
+            # Print a newline to separate the display more
+            print "\n"
             # Is the function defined in the menu?
             if hasattr(self,self.options[selection]):
                 func = getattr(self, self.options[selection])
