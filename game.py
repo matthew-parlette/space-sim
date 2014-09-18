@@ -98,7 +98,7 @@ class Game(Manager):
         """Move a game entity in to another"""
         self.log.debug("Moving %s to %s") % (str(object_id),str(destination_id))
         for player in self.players:
-            if str(player.id) = str(object_id):
+            if str(player.id) == str(object_id):
                 player.sector = int(destination_id)
                 return True
 
