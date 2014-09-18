@@ -94,6 +94,14 @@ class Game(Manager):
             )
         )
 
+    def move(self, object_id, destination_id):
+        """Move a game entity in to another"""
+        self.log.debug("Moving %s to %s") % (str(object_id),str(destination_id))
+        for player in self.players:
+            if str(player.id) = str(object_id):
+                player.sector = int(destination_id)
+                return True
+
     def get(self,id):
         """Get an object from the game.
 
