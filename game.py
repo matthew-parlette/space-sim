@@ -22,7 +22,7 @@ class Sector(Entity):
     """docstring for Sector"""
     id_index = defaultdict(list)
 
-    def __init__(self, id, warps = {}):
+    def __init__(self, id, warps = []):
         super(Sector, self).__init__(id)
         self.warps = warps
         Sector.id_index[id].append(self)
@@ -71,11 +71,11 @@ class Game(Manager):
         """Generate sectors for the universe"""
         self.log.debug("Executing big bang on game %s" % self.id)
         self.sectors = {
-            Sector(int(1),warps = {int(2),int(3),int(4),int(5)}),
-            Sector(int(2),warps = {int(1),int(3),int(4),int(5)}),
-            Sector(int(3),warps = {int(1),int(2),int(4),int(5)}),
-            Sector(int(4),warps = {int(1),int(2),int(3),int(5)}),
-            Sector(int(5),warps = {int(1),int(2),int(3),int(4)})
+            Sector(int(1),warps = [int(2),int(3),int(4),int(5)]),
+            Sector(int(2),warps = [int(1),int(3),int(4),int(5)]),
+            Sector(int(3),warps = [int(1),int(2),int(4),int(5)]),
+            Sector(int(4),warps = [int(1),int(2),int(3),int(5)]),
+            Sector(int(5),warps = [int(1),int(2),int(3),int(4)])
         }
 
     def add_player(self, player_name):
