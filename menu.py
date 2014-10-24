@@ -1,4 +1,5 @@
 import logging
+import sys
 from game import Manager
 from getch import _Getch
 
@@ -60,8 +61,10 @@ class Menu(object):
                 self.options[selection]
             ))
             if hasattr(self,self.options[selection]):
+                self.log.debug("Function %s found in %s" % (self.options[selection],self))
                 func = getattr(self, self.options[selection])
             elif hasattr(self.game,self.options[selection]):
+                self.log.debug("Function %s found in %s" % (self.options[selection],"game"))
                 func = getattr(self.game, self.options[selection])
             else:
                 self.log.error(
@@ -70,12 +73,13 @@ class Menu(object):
                         str(self.__class__.__name__)
                     )
                 )
-            func()
+
+            func(selection)
 
     def pre_prompt_hook(self):
         pass
 
-    def help(self):
+    def help(self, selection = None):
         print "%s\n%s" % (self.heading,'=' * len(self.heading))
         for key,value in self.options.iteritems():
             print "  %s: %s" % (key,value)
@@ -94,7 +98,7 @@ class MainMenu(Menu):
             options = options
         )
 
-    def new(self):
+    def new(self, selection = None):
         NewGameMenu(self.log,self.game).display()
 
     def pre_prompt_hook(self):
@@ -116,11 +120,11 @@ class NewGameMenu(Menu):
             options = options
         )
 
-    def add_player(self):
+    def add_player(self, selection = None):
         player_name = raw_input("Enter new player name: ")
         self.game.add_player(player_name)
 
-    def start(self):
+    def start(self, selection = None):
         self.game.start()
         SectorMenu(self.log,self.game).display()
 
@@ -131,9 +135,14 @@ class SectorMenu(Menu):
     """docstring for SectorMenu"""
     def __init__(self, log, game):
         options = {
-            'q': "quit",
-            'm': "move"
+            'q': "quit"
         }
+        self.player = game.players[0]
+        self.current_sector = game.get(self.player.sector)[0]
+        for warp in self.current_sector.warps:
+            func = "%s" % (str(warp))
+            options[str(warp)] = str(func)
+            setattr(self, str(func), self.move)
         super(SectorMenu, self).__init__(
             log = log,
             game = game,
@@ -141,17 +150,22 @@ class SectorMenu(Menu):
             options = options
         )
 
+    def move(self, selection):
+        to_sector = int(selection)
+        print "in %s" % sys._getframe().f_code.co_name
+        print "selection received: %s" % str(selection)
+        self.game.move(str(self.player.id),str(to_sector))
+        SectorMenu(self.log,self.game).display()
+
     def pre_prompt_hook(self):
         padding = 8
-        player = self.game.players[0]
-        self.log.debug("Using player %s" % str(player))
-        current = self.game.get(player.sector)[0]
-        self.log.debug("Current sector is %s" % str(current.id))
+        self.log.debug("Using player %s" % str(self.player))
+        self.log.debug("Current sector is %s" % str(self.current_sector.id))
         print "%s: %s" % (
             "Sector".ljust(padding),
-            str(current.id)
+            str(self.current_sector.id)
         )
         print "%s: %s" % (
             "Warps".ljust(padding),
-            ", ".join(str(w) for w in current.warps)
+            ", ".join(str(w) for w in self.current_sector.warps)
         )
