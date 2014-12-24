@@ -3,7 +3,7 @@
 import argparse
 import logging
 import os
-import socket
+from network import Server
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -32,32 +32,16 @@ if __name__ == "__main__":
 
     log.info("Initializing...")
 
-    log.info("Initializing network...")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    host = "0.0.0.0"
-    port = 10344
-    s.bind((host,port))
-
-    log.info("Listening on port %s..." % str(port))
-    s.listen(5)
-
-    eot = '|'
-    while True:
-        log.info("Waiting for connection...")
-        connection, client_addr = s.accept()
-
-        try:
-            log.info("Received connection from %s" % str(client_addr))
-            while True:
-                data = connection.recv(16)
-                if data:
-                    log.info("Received data: '%s'" % str(data))
-                    log.info("Sending response to client...")
-                    response = "Server received '%s'" % str(data)
-                    connection.sendall(data + eot)
-                else:
-                    log.info("No more data from %s" % str(client_addr))
-                    break
-        finally:
-            log.info("Closing connection...")
-            connection.close()
+    # Create Server and start listening
+    server = Server(hostname = '', port = 10344, log = log)
+    if server.listen():
+        if server.receive():
+            data = server.last_response
+            log.info("Data from client: '%s'" % str(data))
+            if server.send(data):
+                pass
+            else:
+                log.error("server.send() returned False")
+        else:
+            log.error("server.receive() returned False")
+    server.close()

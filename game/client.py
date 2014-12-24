@@ -3,7 +3,7 @@
 import argparse
 import logging
 import os
-import socket
+from network import Client
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -32,37 +32,18 @@ if __name__ == "__main__":
 
     log.info("Initializing...")
 
-    log.info("Initializing network...")
-    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    # Create Client and connect
     host = 'localhost'
     port = 10344
+    client = Client(hostname = host, port = port, log = log)
 
-    log.info("Connecting to %s on port %s..." % (str(host),str(port)))
-    s.connect((host,port))
-
-    try:
-        data = "here's a message"
-        log.info("Sending data to server...")
-        s.sendall(data)
-
-        eot = '|'
-        total_data = []
-        data = ''
-        log.info("Reading data from server (eot is %s)..." % str(eot))
-        while True:
-            data = s.recv(16)
-            if eot in data:
-                total_data.append(data[:data.find(eot)])
-                break
-            total_data.append(data)
-            if len(total_data) > 1:
-                last_pair = total_data[-2] + total_data[-1]
-                if eot in last_pair:
-                    total_data[-2] = last_pair[:last_pair.find(eot)]
-                    total_data.pop()
-                    break
-        response = ''.join(total_data)
-        log.info("Response from server is '%s'" % str(response))
-    finally:
-        log.info("Closing connection...")
-        s.close()
+    if client.connect():
+        if client.send('message'):
+            if client.receive():
+                log.info("Data from server: '%s'" % str(client.last_response))
+            else:
+                log.error("client.receive() returned False")
+        else:
+            log.error("client.send() returned False")
+    client.close()
+    
