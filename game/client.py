@@ -3,6 +3,7 @@
 import argparse
 import logging
 import os
+import json
 from network import Client
 
 if __name__ == "__main__":
@@ -38,12 +39,24 @@ if __name__ == "__main__":
     client = Client(hostname = host, port = port, log = log)
 
     if client.connect():
-        if client.send('message'):
-            if client.receive():
-                log.info("Data from server: '%s'" % str(client.last_response))
+        if client.receive():
+            log.info("State from server: '%s'" % str(client.last_response))
+
+            # raw_input("Press enter to send registration to server...")
+
+            command = {'register': {'name': 'matt', 'password': 'matt'}}
+            if client.send(json.dumps(command)):
+                log.info("Command sent to server, sending login...")
+                command = {'login': {'name': 'matt', 'password': 'matt'}}
+                if client.receive():
+                    if client.send(json.dumps(command)):
+                        log.info("Command sent to server, disconnecting...")
+                    else:
+                        log.error("client.send() returned False")
+                else:
+                    log.error("client.receive() returned False")
             else:
-                log.error("client.receive() returned False")
+                log.error("client.send() returned False")
         else:
-            log.error("client.send() returned False")
+            log.error("client.receive() returned False")
     client.close()
-    
