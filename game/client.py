@@ -4,7 +4,7 @@ import argparse
 import logging
 import os
 import json
-from network import Client
+import socket
 
 if __name__ == "__main__":
     # Parse command line arguments
@@ -36,27 +36,31 @@ if __name__ == "__main__":
     # Create Client and connect
     host = 'localhost'
     port = 10344
-    client = Client(hostname = host, port = port, log = log)
+    log.info("Connecting to %s:%s" % (str(host),str(port)))
+    socket = socket.create_connection((host,port))
+    log.info("Connected to %s:%s" % (str(host),str(port)))
 
-    if client.connect():
-        if client.receive():
-            log.info("State from server: '%s'" % str(client.last_response))
+    fileobj = socket.makefile()
 
-            # raw_input("Press enter to send registration to server...")
+    while True:
+        # Send command
+        data = {'state': {}}
+        log.info("Sending command to server: %s" % str(data))
+        fileobj.write(json.dumps(data))
+        fileobj.write("\n")
+        fileobj.flush()
 
-            command = {'register': {'name': 'matt', 'password': 'matt'}}
-            if client.send(json.dumps(command)):
-                log.info("Command sent to server, sending login...")
-                command = {'login': {'name': 'matt', 'password': 'matt'}}
-                if client.receive():
-                    if client.send(json.dumps(command)):
-                        log.info("Command sent to server, disconnecting...")
-                    else:
-                        log.error("client.send() returned False")
-                else:
-                    log.error("client.receive() returned False")
-            else:
-                log.error("client.send() returned False")
-        else:
-            log.error("client.receive() returned False")
-    client.close()
+        # Receive state
+        log.info("Receiving from server...")
+        line = fileobj.readline()
+        if not line:
+            log.info("Server disconnected")
+            break
+
+        log.info("Loading state as json...")
+        state = json.loads(line)
+        log.info("State received from server: %s" % str(state))
+        log.info("Disconnecting")
+        break
+
+    socket.close()
