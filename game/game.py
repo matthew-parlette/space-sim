@@ -45,12 +45,11 @@ class User(GameObject):
         self.name = name
         self.password = password
         self.token = token
-        self.token_expires = token_expires
 
         # Parent init should be called at end of __init__
         super(User,self).__init__()
 
-    def __repr__(self):
+    def __str__(self):
         return "%s(name=%s, password=%s, token=%s)" % (
             self.__class__.__name__, self.name, self.password, self.token)
 
@@ -111,13 +110,22 @@ class Game(object):
         logged in user.
         """
 
+        self.log.info("Generating state...")
+        self.log.info("logged_in_user is %s" % str(self.logged_in_user))
         if self.logged_in_user:
             # User is logged in
-            pass
+            state = {
+                'user': self.logged_in_user.__dict__, # Return __dict__ for json
+            }
+            commands = {
+
+            }
         else:
             # No user is logged in
             empty_user = User()
-            state = {'user': empty_user.__dict__}
+            state = {
+                'user': empty_user.__dict__,
+            }
             commands = {
                 # Login takes user/pass
                 'login': {'name': None, 'password': None},
@@ -136,7 +144,8 @@ class Game(object):
             else:
                 self.log.info("Adding new user '%s'..." % str(name))
                 Game._users[str(name)] = User(name = name, password = password)
-                return True
+                # Automatically login the user that was just created
+                return self.login(name, password)
         self.log.error("Name or password is missing")
         return False
 
@@ -146,26 +155,19 @@ class Game(object):
                 self.log.info("Username '%s' found in user database" % str(name))
                 self.log.info("Password loaded for '%s' as '%s'" % (
                     Game._users[str(name)],
-                    Game._users[str(name)].password))
+                    Game._users[str(name)].password,
+                ))
                 if password == Game._users[str(name)].password:
+                    self.log.info("Login successful, setting logged in user to %s..." % str(Game._users[str(name)]))
+                    self.logged_in_user = Game._users[str(name)]
                     if Game._users[str(name)].token:
                         # Token exists
-                        expires = Game._users[str(name)].token_expires
-                        if datetime.datetime.strptime(expires) <= datetime.datetime.now():
-                            # Token has expired, regenerate it
-                            Game._users[str(name)].token = uuid.uuid4()
-                            Game._users[str(name)].token_expires = datetime.timedelta(days = 1)
-                            self.log.info("Login successful, token regenerated. User state is %s" % Game._users[str(name)])
-                            return True
-                        else:
-                            # Token is still valid, user can use it
-                            self.log.info("Login successful, token reused. User state is %s" % Game._users[str(name)])
-                            return True
+                        self.log.info("Token reused. User state is %s" % Game._users[str(name)])
+                        return True
                     else:
                         # Generate token
-                        Game._users[str(name)].token = uuid.uuid4()
-                        Game._users[str(name)].token_expires = datetime.timedelta(days = 1)
-                        self.log.info("Login successful, token generated. User state is %s" % Game._users[str(name)])
+                        Game._users[str(name)].token = str(uuid.uuid4())
+                        self.log.info("Token generated. User state is %s" % Game._users[str(name)])
                         return True
                 else:
                     self.log.error("Login failed, incorrect password for '%s'" % str(name))
