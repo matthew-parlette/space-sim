@@ -61,7 +61,8 @@ def handle(socket, address):
         # Listen for commands
         line = fileobj.readline()
         if not line:
-            log.info("Client disconnected")
+            log.info("Client disconnected, saving game...")
+            game.save()
             break
         # Process line as a command
         command_dict = json.loads(line)
