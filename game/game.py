@@ -37,14 +37,21 @@ class GameObject(object):
         return result
 
 class User(GameObject):
+    STATUS = [
+        'new',
+        'alive',
+        'dead',
+    ]
+
     def __init__(self,
                  name = None,
                  password = None,
                  token = None,
-                 token_expires = None):
+                 status = 'new'):
         self.name = name
         self.password = password
         self.token = token
+        self.status = status
 
         # Parent init should be called at end of __init__
         super(User,self).__init__()
@@ -111,29 +118,33 @@ class Game(object):
         """
 
         self.log.info("Generating state...")
-        self.log.info("logged_in_user is %s" % str(self.logged_in_user))
-        if self.logged_in_user:
-            # User is logged in
-            state = {
-                'user': self.logged_in_user.__dict__, # Return __dict__ for json
-            }
-            commands = {
+        flags = {
+            'logged_in': True if self.logged_in_user else False,
+            'new_user': True if (
+                self.logged_in_user and
+                self.logged_in_user.status == 'new'
+            ) else False,
+        }
+        self.log.info("State flags are %s" % str(flags))
+        state = {} # Initialize
+        commands = {} # Initialize
 
-            }
+        if flags['logged_in']:
+            # Return __dict__ for json
+            state['user'] = self.logged_in_user.__dict__
         else:
             # No user is logged in
-            empty_user = User()
-            state = {
-                'user': empty_user.__dict__,
-            }
-            commands = {
-                # Login takes user/pass
-                'login': {'name': None, 'password': None},
-                # Register takes user/pass
-                'register': {'name': None, 'password': None},
-            }
-        self.log.info("Returning state of %s..." % str(state))
+            state['user'] = User().__dict__ # Emtpy user
+            # Login takes user/pass
+            commands['login'] = {'name': None, 'password': None}
+            # Register takes user/pass
+            commands['register'] = {'name': None, 'password': None}
 
+        if flags['new_user']:
+            # New user needs to create a ship
+            commands['create_ship'] = {'name': None}
+
+        self.log.info("Returning state of %s..." % str(state))
         return state, commands
 
     def register(self, name, password):
@@ -177,3 +188,9 @@ class Game(object):
                 return False
         self.log.error("Login failed, Name or password is missing")
         return False
+
+    def create_ship(self, name):
+        self.log.info("Creating new ship '%s' for user %s..." % (
+            str(name),
+            str(self.logged_in_user.name),
+        ))

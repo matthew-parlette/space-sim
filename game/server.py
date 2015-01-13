@@ -25,6 +25,9 @@ class ServerGameAdapter(object):
     def login(self, parameters):
         return self.game.login(parameters['name'], parameters['password'])
 
+    def create_ship(self, parameters):
+        return self.game.create_ship(parameters['name'])
+
 def json_repr(obj):
     """Represent instance of a class as JSON.
     Arguments:
