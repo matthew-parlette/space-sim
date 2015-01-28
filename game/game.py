@@ -77,13 +77,13 @@ class User(GameObject):
         password = None,
         token = None,
         status = 'new',
-        location = None
+        location_id = None
     ):
         self.name = name
         self.password = password
         self.token = token
         self.status = status
-        self.location = location
+        self.location_id = location_id
 
         # Parent init should be called at end of __init__
         super(User,self).__init__()
@@ -104,7 +104,7 @@ class Ship(GameObject):
     def __init__(
         self,
         name = None,
-        id = uuid.uuid4()
+        id = str(uuid.uuid4())
     ):
         self.name = name
         self.id = id
@@ -177,6 +177,15 @@ class Game(object):
         self.log.info("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
 
+    @property
+    def location(self):
+        """Return location object for the user's current location"""
+        if self.logged_in_user.location_id:
+            loc_id = self.logged_in_user.location_id
+            if loc_id in Game._ships.keys():
+                return Game._ships[loc_id]
+        return None
+
     def state(self):
         """Return the state and commands dictionary for the currently
         logged in user.
@@ -191,8 +200,7 @@ class Game(object):
         ) else False
         flags['in_ship'] = True if (
             flags['logged_in'] and
-            self.logged_in_user.location and
-            self.logged_in_user.location in Game._ships
+            self.location.__class__.__name__ == 'Ship'
         ) else False
 
         self.log.info("State flags are %s" % str(flags))
@@ -202,6 +210,12 @@ class Game(object):
         if flags['logged_in']:
             # Return __dict__ for json
             state['user'] = self.logged_in_user.__dict__
+            if not flags['joined_game']:
+                # New user needs to join the game
+                commands['join_game'] = {'ship_name': None}
+
+            if flags['in_ship']:
+                state['location'] = self.location.__dict__
         else:
             # No user is logged in
             state['user'] = User().__dict__ # Emtpy user
@@ -209,13 +223,6 @@ class Game(object):
             commands['login'] = {'name': None, 'password': None}
             # Register takes user/pass
             commands['register'] = {'name': None, 'password': None}
-
-        if not flags['joined_game']:
-            # New user needs to create a ship
-            commands['create_ship'] = {'name': None}
-
-        if flags['in_ship']:
-            state['location'] = self.logged_in_user.location.__dict__
 
         self.log.info("Returning state of %s..." % str(state))
         return state, commands
@@ -262,8 +269,22 @@ class Game(object):
         self.log.error("Login failed, Name or password is missing")
         return False
 
-    def create_ship(self, name):
+    def join_game(self, ship_name):
         self.log.info("Creating new ship '%s' for user %s..." % (
-            str(name),
+            str(ship_name),
             str(self.logged_in_user.name),
         ))
+
+        # Create ship
+        ship = Ship(name = ship_name)
+        Game._ships[ship.id] = ship
+
+        # Put player in ship
+        self.logged_in_user.location_id = ship.id
+
+        # Mark player as not-new
+        self.logged_in_user.status = 'alive'
+
+        # Return result
+        self.log.info("Ship '%s' created" % (str(ship.name)))
+        return True
