@@ -7,7 +7,7 @@ import json
 from game import Game
 from gevent.server import StreamServer
 
-log = None
+global log
 
 class ServerGameAdapter(object):
     def __init__(self, log = None):
@@ -25,8 +25,8 @@ class ServerGameAdapter(object):
     def login(self, parameters):
         return self.game.login(parameters['name'], parameters['password'])
 
-    def create_ship(self, parameters):
-        return self.game.create_ship(parameters['name'])
+    def join_game(self, parameters):
+        return self.game.join_game(parameters['ship_name'])
 
 def json_repr(obj):
     """Represent instance of a class as JSON.

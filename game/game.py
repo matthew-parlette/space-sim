@@ -6,8 +6,26 @@ import yaml
 import uuid
 import datetime
 
-class GameObject(object):
+class Serializable(yaml.YAMLObject):
+    """Required to call __init__ on an object as it is loaded from YAML"""
+    __metaclass__ = yaml.YAMLObjectMetaclass
+
+    @classmethod
+    def to_yaml(cls, dumper, data):
+        return ordered_dump(dumper, '!{0}'.format(data.__class__.__name__),
+                            data.__dict__)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        fields = loader.construct_mapping(node, deep=True)
+        print "loading object from yaml, fields: %s" % str(fields)
+        return cls(**fields)
+
+class GameObject(yaml.YAMLObject):
+    __metaclass__ = yaml.YAMLObjectMetaclass
+
     def __init__(self):
+        super(GameObject,self).__init__()
         # Call byteify to make sure all unicode variables are saved as strings
         # This makes it easier to save in yaml
         self.__dict__ = self.byteify(self.__dict__)
@@ -36,33 +54,76 @@ class GameObject(object):
 
         return result
 
+    def __repr__(self):
+        return str(self.__dict__)
+
+    @classmethod
+    def from_yaml(cls, loader, node):
+        fields = loader.construct_mapping(node, deep=True)
+        return cls(**fields)
+
 class User(GameObject):
+    yaml_tag = "!User"
+
     STATUS = [
         'new',
         'alive',
         'dead',
     ]
 
-    def __init__(self,
-                 name = None,
-                 password = None,
-                 token = None,
-                 status = 'new'):
+    def __init__(
+        self,
+        name = None,
+        password = None,
+        token = None,
+        status = 'new',
+        location_id = None
+    ):
         self.name = name
         self.password = password
         self.token = token
         self.status = status
+        self.location_id = location_id
 
         # Parent init should be called at end of __init__
         super(User,self).__init__()
 
     def __str__(self):
-        return "%s(name=%s, password=%s, token=%s)" % (
-            self.__class__.__name__, self.name, self.password, self.token)
+        return "%s (name=%s, status=%s)" % (
+            self.__class__.__name__, self.name, self.status)
+
+    # @staticmethod
+    # def load(loader, node):
+    #    values = loader.construct_mapping(node, deep=True)
+    #    return User(**values)
+# yaml.Loader.add_constructor('!User', User.load)
+
+class Ship(GameObject):
+    yaml_tag = "!Ship"
+
+    def __init__(
+        self,
+        name = None,
+        id = str(uuid.uuid4())
+    ):
+        self.name = name
+        self.id = id
+
+        # Parent init should be called at end of __init__
+        super(Ship,self).__init__()
+
+    def __str__(self):
+        return "%s (name=%s, id=%s)" % (
+            self.__class__.__name__,
+            self.name,
+            self.id,
+        )
 
 class Game(object):
-    # Users is shared between all instances of Game
+    # Objects shared between all instances of Game
     _users = {}
+    _ships = {}
+    shared_objects = ['users','ships']
 
     def __init__(self, data_dir = 'data', log = None):
         self.log = log
@@ -73,14 +134,14 @@ class Game(object):
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
 
-        self.load_shared_object('users')
+        for obj in Game.shared_objects:
+            self.load_shared_object(obj)
 
         self.logged_in_user = None
 
     def save(self):
         self.log.info("Saving shared objects to disk")
-        objects = ['users']
-        for obj in objects:
+        for obj in Game.shared_objects:
             if getattr(Game, '_' + obj, None):
                 self.log.info("Saving shared object '%s'..." % str(obj))
                 self.log.info("Shared object '%s' is %s" % (str(obj),str(getattr(Game, '_' + obj))))
@@ -104,7 +165,11 @@ class Game(object):
             if os.path.isfile(filename):
                 self.log.info("Loading shared object '%s' from %s..." % (str(friendly_name),
                                                                          str(filename)))
-                setattr(Game, object_name, yaml.load(open(filename)))
+                loaded_obj = yaml.load(open(filename))
+                # for key, value in loaded_obj.iteritems():
+
+                    # self.log.info("Loaded %s of type %s" % (str(loaded_obj),str(loaded_obj.__class__.__name__)))
+                setattr(Game, object_name, loaded_obj)
             else:
                 self.log.info("File not found, creating a new shared object '%s'..." %
                     str(friendly_name))
@@ -112,19 +177,32 @@ class Game(object):
         self.log.info("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
 
+    @property
+    def location(self):
+        """Return location object for the user's current location"""
+        if self.logged_in_user.location_id:
+            loc_id = self.logged_in_user.location_id
+            if loc_id in Game._ships.keys():
+                return Game._ships[loc_id]
+        return None
+
     def state(self):
         """Return the state and commands dictionary for the currently
         logged in user.
         """
 
         self.log.info("Generating state...")
-        flags = {
-            'logged_in': True if self.logged_in_user else False,
-            'new_user': True if (
-                self.logged_in_user and
-                self.logged_in_user.status == 'new'
-            ) else False,
-        }
+        flags = {}
+        flags['logged_in'] = True if self.logged_in_user else False
+        flags['joined_game'] = True if (
+            flags['logged_in'] and
+            self.logged_in_user.status != 'new'
+        ) else False
+        flags['in_ship'] = True if (
+            flags['logged_in'] and
+            self.location.__class__.__name__ == 'Ship'
+        ) else False
+
         self.log.info("State flags are %s" % str(flags))
         state = {} # Initialize
         commands = {} # Initialize
@@ -132,6 +210,12 @@ class Game(object):
         if flags['logged_in']:
             # Return __dict__ for json
             state['user'] = self.logged_in_user.__dict__
+            if not flags['joined_game']:
+                # New user needs to join the game
+                commands['join_game'] = {'ship_name': None}
+
+            if flags['in_ship']:
+                state['location'] = self.location.__dict__
         else:
             # No user is logged in
             state['user'] = User().__dict__ # Emtpy user
@@ -139,10 +223,6 @@ class Game(object):
             commands['login'] = {'name': None, 'password': None}
             # Register takes user/pass
             commands['register'] = {'name': None, 'password': None}
-
-        if flags['new_user']:
-            # New user needs to create a ship
-            commands['create_ship'] = {'name': None}
 
         self.log.info("Returning state of %s..." % str(state))
         return state, commands
@@ -189,8 +269,22 @@ class Game(object):
         self.log.error("Login failed, Name or password is missing")
         return False
 
-    def create_ship(self, name):
+    def join_game(self, ship_name):
         self.log.info("Creating new ship '%s' for user %s..." % (
-            str(name),
+            str(ship_name),
             str(self.logged_in_user.name),
         ))
+
+        # Create ship
+        ship = Ship(name = ship_name)
+        Game._ships[ship.id] = ship
+
+        # Put player in ship
+        self.logged_in_user.location_id = ship.id
+
+        # Mark player as not-new
+        self.logged_in_user.status = 'alive'
+
+        # Return result
+        self.log.info("Ship '%s' created" % (str(ship.name)))
+        return True
