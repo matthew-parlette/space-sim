@@ -5,6 +5,8 @@ import json
 import yaml
 import uuid
 import datetime
+from user import User
+from ship import Ship
 
 class Serializable(yaml.YAMLObject):
     """Required to call __init__ on an object as it is loaded from YAML"""
@@ -20,104 +22,6 @@ class Serializable(yaml.YAMLObject):
         fields = loader.construct_mapping(node, deep=True)
         print "loading object from yaml, fields: %s" % str(fields)
         return cls(**fields)
-
-class GameObject(yaml.YAMLObject):
-    __metaclass__ = yaml.YAMLObjectMetaclass
-
-    def __init__(self):
-        super(GameObject,self).__init__()
-        # Call byteify to make sure all unicode variables are saved as strings
-        # This makes it easier to save in yaml
-        self.__dict__ = self.byteify(self.__dict__)
-
-    def byteify(self, data):
-        """Make sure everything in data is a string, not unicode (for nicer yaml)."""
-        if isinstance(data, dict):
-            result = {}
-            for key, value in data.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                if isinstance(value, dict) or isinstance(value, list):
-                    value = self.byteify(value)
-                result[key] = value
-        elif isinstance(data, list):
-            result = []
-            for item in data:
-                if isinstance(item, unicode):
-                    item = item.encode('utf-8')
-                if isinstance(item, dict) or isinstance(item, list):
-                    item = self.byteify(value)
-        else:
-            result = None
-
-        return result
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        return cls(**fields)
-
-class User(GameObject):
-    yaml_tag = "!User"
-
-    STATUS = [
-        'new',
-        'alive',
-        'dead',
-    ]
-
-    def __init__(
-        self,
-        name = None,
-        password = None,
-        token = None,
-        status = 'new',
-        location_id = None
-    ):
-        self.name = name
-        self.password = password
-        self.token = token
-        self.status = status
-        self.location_id = location_id
-
-        # Parent init should be called at end of __init__
-        super(User,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, status=%s)" % (
-            self.__class__.__name__, self.name, self.status)
-
-    # @staticmethod
-    # def load(loader, node):
-    #    values = loader.construct_mapping(node, deep=True)
-    #    return User(**values)
-# yaml.Loader.add_constructor('!User', User.load)
-
-class Ship(GameObject):
-    yaml_tag = "!Ship"
-
-    def __init__(
-        self,
-        name = None,
-        id = str(uuid.uuid4())
-    ):
-        self.name = name
-        self.id = id
-
-        # Parent init should be called at end of __init__
-        super(Ship,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, id=%s)" % (
-            self.__class__.__name__,
-            self.name,
-            self.id,
-        )
 
 class Game(object):
     # Objects shared between all instances of Game
