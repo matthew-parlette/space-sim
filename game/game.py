@@ -8,26 +8,12 @@ import datetime
 from user import User
 from ship import Ship
 
-class Serializable(yaml.YAMLObject):
-    """Required to call __init__ on an object as it is loaded from YAML"""
-    __metaclass__ = yaml.YAMLObjectMetaclass
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return ordered_dump(dumper, '!{0}'.format(data.__class__.__name__),
-                            data.__dict__)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        print "loading object from yaml, fields: %s" % str(fields)
-        return cls(**fields)
-
 class Game(object):
     # Objects shared between all instances of Game
     _users = {}
     _ships = {}
-    shared_objects = ['users','ships']
+    _sectors = {}
+    shared_objects = ['users','ships','sectors']
 
     def __init__(self, data_dir = 'data', log = None):
         self.log = log
