@@ -7,6 +7,7 @@ import uuid
 import datetime
 from user import User
 from ship import Ship
+from sector import Sector
 
 class Game(object):
     # Objects shared between all instances of Game
@@ -67,13 +68,14 @@ class Game(object):
         self.log.info("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
 
-    @property
-    def location(self):
+    def location(self, of):
         """Return location object for the user's current location"""
-        if self.logged_in_user.location_id:
-            loc_id = self.logged_in_user.location_id
+        if of.location_id:
+            loc_id = of.location_id
             if loc_id in Game._ships.keys():
                 return Game._ships[loc_id]
+            if loc_id in Game._sectors.keys():
+                return Game._sectors[loc_id]
         return None
 
     def state(self):
@@ -82,16 +84,26 @@ class Game(object):
         """
 
         self.log.info("Generating state...")
+        # Define Flags
         flags = {}
         flags['logged_in'] = True if self.logged_in_user else False
         flags['joined_game'] = True if (
             flags['logged_in'] and
             self.logged_in_user.status != 'new'
         ) else False
+        user_location = self.location(of = self.logged_in_user) if flags['joined_game'] else None
         flags['in_ship'] = True if (
             flags['logged_in'] and
-            self.location.__class__.__name__ == 'Ship'
+            user_location and
+            user_location.__class__.__name__ == 'Ship'
         ) else False
+        ship_location = self.location(of = user_location) if flags['in_ship'] else None
+        flags['in_sector'] = True if (
+            flags['in_ship'] and
+            ship_location and
+            ship_location.__class__.__name__ == 'Sector'
+        ) else False
+        # Flags are defined
 
         self.log.info("State flags are %s" % str(flags))
         state = {} # Initialize
@@ -105,7 +117,10 @@ class Game(object):
                 commands['join_game'] = {'ship_name': None}
 
             if flags['in_ship']:
-                state['location'] = self.location.__dict__
+                state['location'] = user_location.__dict__
+
+            if flags['in_sector']:
+                state['sector'] = ship_location.__dict__
         else:
             # No user is logged in
             state['user'] = User().__dict__ # Emtpy user
@@ -175,6 +190,33 @@ class Game(object):
         # Mark player as not-new
         self.logged_in_user.status = 'alive'
 
+        # Spawn the ship
+        self.spawn(ship)
+
         # Return result
         self.log.info("Ship '%s' created" % (str(ship.name)))
         return True
+
+    def spawn(self, ship):
+        """
+        Spawn a ship in sector 1
+        """
+        sector = self.sector('1')
+        if not sector:
+            # Sector 1 doesn't exist, create it
+            self._sectors['1'] = Sector(name = '1')
+            sector = self.sector('1')
+            if not sector:
+                self.log.error("Sector 1 could not be created")
+                return False
+
+        ship.location_id = sector.name
+        return True
+
+    def sector(self, name):
+        """
+        Return a sector by id, or None if sector was not found
+        """
+        if name in self._sectors:
+            return self._sectors[str(name)]
+        return None

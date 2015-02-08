@@ -5,6 +5,7 @@ import logging
 import os
 import json
 import socket
+import pprint
 
 class _Getch:
     """Gets a single character from standard input.  Does not echo to the
@@ -59,7 +60,7 @@ class Menu(object):
         if self.state:
             print "State\n%s\n%s" % (
                 '=' * 5,
-                str(self.state)
+                pprint.pformat(self.state)
             )
 
             command_menu = self.command_dict(self.commands)

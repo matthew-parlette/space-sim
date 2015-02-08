@@ -7,10 +7,12 @@ class Ship(GameObject):
     def __init__(
         self,
         name = None,
-        id = str(uuid.uuid4())
+        id = str(uuid.uuid4()),
+        location_id = None,
     ):
         self.name = name
         self.id = id
+        self.location_id = location_id
 
         # Parent init should be called at end of __init__
         super(Ship,self).__init__()
