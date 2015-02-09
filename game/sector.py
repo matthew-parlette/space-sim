@@ -10,7 +10,7 @@ class Sector(GameObject):
         id = str(uuid.uuid4()),
         warps = []
     ):
-        self.name = name
+        self.name = str(name)
         self.id = id
         self.warps = warps
 
@@ -18,8 +18,8 @@ class Sector(GameObject):
         super(Sector,self).__init__()
 
     def __str__(self):
-        return "%s (name=%s, id=%s)" % (
+        return "%s (name=%s, warps=%s)" % (
             self.__class__.__name__,
             self.name,
-            self.id,
+            str(self.warps),
         )

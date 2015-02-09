@@ -5,6 +5,8 @@ import json
 import yaml
 import uuid
 import datetime
+import shutil
+from random import randint
 from user import User
 from ship import Ship
 from sector import Sector
@@ -16,11 +18,21 @@ class Game(object):
     _sectors = {}
     shared_objects = ['users','ships','sectors']
 
-    def __init__(self, data_dir = 'data', log = None):
+    def __init__(self, data_dir = 'data', log = None, bigbang = False):
         self.log = log
         self.file = file
-
+        self.size = 10
         self.data_dir = data_dir
+
+        # Delete data directory if bigbang is True
+        self.log.warning("Performing big bang...")
+        if os.path.isdir(self.data_dir):
+            self.log.info("Deleting data directory '%s'..." % str(self.data_dir))
+            shutil.rmtree(self.data_dir)
+        # Set bigbang to False to make sure we don't delete data on next login
+        self.log.info("Big Bang complete, it will not be run again until the game is restarted")
+        self.bigbang = False
+
         self.log.info("Verifying data directory exists (%s)..." % str(self.data_dir))
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
@@ -201,22 +213,48 @@ class Game(object):
         """
         Spawn a ship in sector 1
         """
-        sector = self.sector('1')
-        if not sector:
-            # Sector 1 doesn't exist, create it
-            self._sectors['1'] = Sector(name = '1')
-            sector = self.sector('1')
-            if not sector:
-                self.log.error("Sector 1 could not be created")
-                return False
-
-        ship.location_id = sector.name
+        self.log.info("Requesting sector '%s'..." % str(1))
+        sector = self.sector(str(1))
+        self.log.info("Spawning ship '%s' in sector '%s'..." % (str(ship),str(sector)))
+        ship.location_id = str(sector.name)
         return True
 
     def sector(self, name):
         """
-        Return a sector by id, or None if sector was not found
+        Return a sector (lookup by name)
+
+        If the sector is not found, it will be generated
         """
-        if name in self._sectors:
+        if str(name) in self._sectors.keys():
             return self._sectors[str(name)]
-        return None
+
+        # Sector doesn't exit, create it
+        self.log.info("Sector '%s' does not exist, generating new sector..." % str(name))
+        warplist = []
+        ## First, see if any existing sectors link to this one
+        for sector in self._sectors.itervalues():
+            if str(name) in sector.warps:
+                warplist.append(str(sector.name))
+        self.log.info("After finding existing links, warplist is %s" % str(warplist))
+
+        ## Then generate a list of warps to sectors that don't exist
+        while len(warplist) < 4:
+            new_sector_name = None
+            while not new_sector_name:
+                random_sector_name = randint(2,self.size)
+                if random_sector_name not in self._sectors.keys():
+                    new_sector_name = random_sector_name
+            warplist.append(str(new_sector_name))
+        self.log.info("After generating random warps, warplist is %s" % str(warplist))
+
+        ## Finally create the sector
+        self._sectors[str(name)] = Sector(
+            name = str(name),
+            warps = warplist,
+        )
+        sector = self._sectors[str(name)]
+        if not sector:
+            self.log.error("Sector %s could not be created" % str(name))
+            return None
+        self.log.info("Sector created, returning %s" % str(sector))
+        return sector

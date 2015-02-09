@@ -5,7 +5,6 @@ class GameObject(yaml.YAMLObject):
 
     def __init__(self):
         super(GameObject,self).__init__()
-        self.type = self.__class__.__name__
         # Call byteify to make sure all unicode variables are saved as strings
         # This makes it easier to save in yaml
         self.__dict__ = self.byteify(self.__dict__)
@@ -29,6 +28,7 @@ class GameObject(yaml.YAMLObject):
                     item = item.encode('utf-8')
                 if isinstance(item, dict) or isinstance(item, list):
                     item = self.byteify(value)
+                result.append(item)
         else:
             result = None
 
