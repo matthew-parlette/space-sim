@@ -24,14 +24,15 @@ class Game(object):
         self.size = 10
         self.data_dir = data_dir
 
-        # Delete data directory if bigbang is True
-        self.log.warning("Performing big bang...")
-        if os.path.isdir(self.data_dir):
-            self.log.info("Deleting data directory '%s'..." % str(self.data_dir))
-            shutil.rmtree(self.data_dir)
-        # Set bigbang to False to make sure we don't delete data on next login
-        self.log.info("Big Bang complete, it will not be run again until the game is restarted")
-        self.bigbang = False
+        if bigbang:
+            # Delete data directory if bigbang is True
+            self.log.warning("Performing big bang...")
+            if os.path.isdir(self.data_dir):
+                self.log.info("Deleting data directory '%s'..." % str(self.data_dir))
+                shutil.rmtree(self.data_dir)
+            # Set bigbang to False to make sure we don't delete data on next login
+            self.log.info("Big Bang complete, it will not be run again until the game is restarted")
+            self.bigbang = False
 
         self.log.info("Verifying data directory exists (%s)..." % str(self.data_dir))
         if not os.path.isdir(data_dir):
@@ -133,6 +134,8 @@ class Game(object):
 
             if flags['in_sector']:
                 state['sector'] = ship_location.__dict__
+                if ship_location.warps:
+                    commands['move'] = {'sector': None}
         else:
             # No user is logged in
             state['user'] = User().__dict__ # Emtpy user
@@ -218,6 +221,16 @@ class Game(object):
         self.log.info("Spawning ship '%s' in sector '%s'..." % (str(ship),str(sector)))
         ship.location_id = str(sector.name)
         return True
+
+    def move(self, name):
+        """
+        Move the current player's ship to a sector, if adjacent
+        """
+        ship = self.location(of = self.logged_in_user)
+        if name in self.location(of = ship).warps:
+            # Set the new ship location
+            # Call self.sector() so the sector is generated, if necessary
+            ship.location_id = self.sector(name).name
 
     def sector(self, name):
         """

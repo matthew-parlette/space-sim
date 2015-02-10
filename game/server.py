@@ -29,6 +29,9 @@ class ServerGameAdapter(object):
     def join_game(self, parameters):
         return self.game.join_game(parameters['ship_name'])
 
+    def move(self, parameters):
+        return self.game.move(parameters['sector'])
+
 def json_repr(obj):
     """Represent instance of a class as JSON.
     Arguments:
