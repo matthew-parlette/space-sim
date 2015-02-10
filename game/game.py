@@ -255,7 +255,8 @@ class Game(object):
             new_sector_name = None
             while not new_sector_name:
                 random_sector_name = randint(2,self.size)
-                if random_sector_name not in self._sectors.keys():
+                if random_sector_name not in self._sectors.keys() and
+                random_sector_name not in warplist:
                     new_sector_name = random_sector_name
             warplist.append(str(new_sector_name))
         self.log.info("After generating random warps, warplist is %s" % str(warplist))
