@@ -1,5 +1,6 @@
 import uuid
 from base import GameObject
+from coordinates import Coordinates
 
 class Sector(GameObject):
     yaml_tag = "!Sector"
@@ -8,18 +9,9 @@ class Sector(GameObject):
         self,
         name = None,
         id = str(uuid.uuid4()),
-        warps = []
     ):
         self.name = str(name)
         self.id = id
-        self.warps = warps
 
         # Parent init should be called at end of __init__
         super(Sector,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, warps=%s)" % (
-            self.__class__.__name__,
-            self.name,
-            str(self.warps),
-        )

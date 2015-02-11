@@ -30,7 +30,7 @@ class ServerGameAdapter(object):
         return self.game.join_game(parameters['ship_name'])
 
     def move(self, parameters):
-        return self.game.move(parameters['sector'])
+        return self.game.move(parameters['direction'])
 
 def json_repr(obj):
     """Represent instance of a class as JSON.
@@ -88,7 +88,7 @@ def handle(socket, address):
         # Respond to command
         state, commands = game.state()
         data = {'state': state, 'commands': commands}
-        fileobj.write(json.dumps(data))
+        fileobj.write(json.dumps(data, default=str))
         fileobj.write("\n")
         fileobj.flush()
 

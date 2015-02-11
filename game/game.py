@@ -10,6 +10,7 @@ from random import randint
 from user import User
 from ship import Ship
 from sector import Sector
+from coordinates import Coordinates
 
 class Game(object):
     # Objects shared between all instances of Game
@@ -83,12 +84,12 @@ class Game(object):
 
     def location(self, of):
         """Return location object for the user's current location"""
-        if of.location_id:
-            loc_id = of.location_id
-            if loc_id in Game._ships.keys():
-                return Game._ships[loc_id]
-            if loc_id in Game._sectors.keys():
-                return Game._sectors[loc_id]
+        if hasattr(of, 'location_id'):
+            if of.location_id in Game._ships.keys():
+                return Game._ships[of.location_id]
+        if hasattr(of, 'coordinates'):
+            if of.coordinates in Game._sectors.keys():
+                return Game._sectors[of.coordinates]
         return None
 
     def state(self):
@@ -124,21 +125,21 @@ class Game(object):
 
         if flags['logged_in']:
             # Return __dict__ for json
-            state['user'] = self.logged_in_user.__dict__
+            state['user'] = self.logged_in_user
             if not flags['joined_game']:
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
 
             if flags['in_ship']:
-                state['location'] = user_location.__dict__
+                state['user_location'] = user_location
 
             if flags['in_sector']:
-                state['sector'] = ship_location.__dict__
-                if ship_location.warps:
-                    commands['move'] = {'sector': None}
+                state['sector'] = ship_location
+                # state['sector']['coordinates'] = user_location.coordinates
+                commands['move'] = {'direction': None}
         else:
             # No user is logged in
-            state['user'] = User().__dict__ # Emtpy user
+            state['user'] = User() # Emtpy user
             # Login takes user/pass
             commands['login'] = {'name': None, 'password': None}
             # Register takes user/pass
@@ -214,61 +215,51 @@ class Game(object):
 
     def spawn(self, ship):
         """
-        Spawn a ship in sector 1
+        Spawn a ship in sector (0,0,0)
         """
-        self.log.info("Requesting sector '%s'..." % str(1))
-        sector = self.sector(str(1))
-        self.log.info("Spawning ship '%s' in sector '%s'..." % (str(ship),str(sector)))
-        ship.location_id = str(sector.name)
+        coordinates = Coordinates(0,0,0)
+        self.log.info("Requesting sector at %s..." % str(coordinates))
+        sector = self.sector(coordinates)
+        self.log.info("Spawning ship '%s' in sector '%s' (%s)..." % (
+            str(ship),
+            str(sector),
+            str(coordinates),
+        ))
+        ship.coordinates = coordinates
         return True
 
-    def move(self, name):
+    def move(self, cardinal_direction):
         """
-        Move the current player's ship to a sector, if adjacent
+        Move the current player's ship in a cardinal direction (N-S-E-W)
         """
-        ship = self.location(of = self.logged_in_user)
-        if name in self.location(of = ship).warps:
-            # Set the new ship location
-            # Call self.sector() so the sector is generated, if necessary
-            ship.location_id = self.sector(name).name
+        if cardinal_direction.lower() in ['n','s','e','w']:
+            ship = self.location(of = self.logged_in_user)
+            ship.coordinates = ship.coordinates.adjacent(cardinal_direction)
 
-    def sector(self, name):
+            # Call self.sector() so the sector is generated, if necessary
+            self.sector(ship.coordinates)
+
+    def sector(self, coordinates):
         """
         Return a sector (lookup by name)
 
         If the sector is not found, it will be generated
         """
-        if str(name) in self._sectors.keys():
-            return self._sectors[str(name)]
+        if coordinates in self._sectors.keys():
+            sector = self._sectors[coordinates]
+            self.log.info("Sector at %s exists, returning %s..." % (
+                str(coordinates),
+                str(sector),
+            ))
+            return sector
 
         # Sector doesn't exit, create it
-        self.log.info("Sector '%s' does not exist, generating new sector..." % str(name))
-        warplist = []
-        ## First, see if any existing sectors link to this one
-        for sector in self._sectors.itervalues():
-            if str(name) in sector.warps:
-                warplist.append(str(sector.name))
-        self.log.info("After finding existing links, warplist is %s" % str(warplist))
-
-        ## Then generate a list of warps to sectors that don't exist
-        while len(warplist) < 4:
-            new_sector_name = None
-            while not new_sector_name:
-                random_sector_name = randint(2,self.size)
-                if random_sector_name not in self._sectors.keys() and
-                random_sector_name not in warplist:
-                    new_sector_name = random_sector_name
-            warplist.append(str(new_sector_name))
-        self.log.info("After generating random warps, warplist is %s" % str(warplist))
-
-        ## Finally create the sector
-        self._sectors[str(name)] = Sector(
-            name = str(name),
-            warps = warplist,
-        )
-        sector = self._sectors[str(name)]
+        self.log.info("Sector at %s does not exist, generating new sector..." % str(coordinates))
+        new_sector = Sector(name = 'M-' + str(randint(0,1000)))
+        self._sectors[coordinates] = new_sector
+        sector = self._sectors[coordinates]
         if not sector:
-            self.log.error("Sector %s could not be created" % str(name))
+            self.log.error("Sector at %s could not be created" % str(coordinates))
             return None
-        self.log.info("Sector created, returning %s" % str(sector))
+        self.log.info("Sector at %s created, returning %s" % (str(coordinates),str(sector)))
         return sector

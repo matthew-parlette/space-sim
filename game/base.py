@@ -37,6 +37,10 @@ class GameObject(yaml.YAMLObject):
     def __repr__(self):
         return str(self.__dict__)
 
+    # This method is used by json.dumps() when sending it to a client
+    def __str__(self):
+        return str(self.__dict__)
+
     @classmethod
     def from_yaml(cls, loader, node):
         fields = loader.construct_mapping(node, deep=True)

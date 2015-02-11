@@ -25,7 +25,3 @@ class User(GameObject):
 
         # Parent init should be called at end of __init__
         super(User,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, status=%s)" % (
-            self.__class__.__name__, self.name, self.status)
