@@ -136,7 +136,7 @@ class Game(object):
             if flags['in_sector']:
                 state['sector'] = ship_location
                 # state['sector']['coordinates'] = user_location.coordinates
-                commands['move'] = {'direction': None}
+                commands['move'] = {'direction': ['n','s','e','w']}
         else:
             # No user is logged in
             state['user'] = User() # Emtpy user
