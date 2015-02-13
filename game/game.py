@@ -22,7 +22,6 @@ class Game(object):
     def __init__(self, data_dir = 'data', log = None, bigbang = False):
         self.log = log
         self.file = file
-        self.size = 10
         self.data_dir = data_dir
 
         if bigbang:
