@@ -88,7 +88,7 @@ def handle(socket, address):
         # Respond to command
         state, commands = game.state()
         data = {'state': state, 'commands': commands}
-        fileobj.write(json.dumps(data, default=str))
+        fileobj.write(json.dumps(data))
         fileobj.write("\n")
         fileobj.flush()
 

@@ -17,3 +17,11 @@ class Ship(GameObject):
 
         # Parent init should be called at end of __init__
         super(Ship,self).__init__()
+
+    def to_dict(self):
+        """Override to_dict to handle coordinates."""
+        return {
+            'name': self.name,
+            'id': self.id,
+            'coordinates': self.coordinates.to_dict(),
+        }

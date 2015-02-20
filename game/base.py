@@ -41,6 +41,9 @@ class GameObject(yaml.YAMLObject):
     def __str__(self):
         return str(self.__dict__)
 
+    def to_dict(self):
+        return self.__dict__
+
     @classmethod
     def from_yaml(cls, loader, node):
         fields = loader.construct_mapping(node, deep=True)

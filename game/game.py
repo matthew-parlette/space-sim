@@ -94,6 +94,10 @@ class Game(object):
     def state(self):
         """Return the state and commands dictionary for the currently
         logged in user.
+
+        The state must be returned as a dictionary, so it can be
+        converted correctly to json. This means that objects must be
+        converted to a dictionary before being returned.
         """
 
         self.log.info("Generating state...")
@@ -124,21 +128,21 @@ class Game(object):
 
         if flags['logged_in']:
             # Return __dict__ for json
-            state['user'] = self.logged_in_user
+            state['user'] = self.logged_in_user.to_dict()
             if not flags['joined_game']:
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
 
             if flags['in_ship']:
-                state['user_location'] = user_location
+                state['user_location'] = user_location.to_dict()
 
             if flags['in_sector']:
-                state['sector'] = ship_location
+                state['sector'] = ship_location.to_dict()
                 # state['sector']['coordinates'] = user_location.coordinates
                 commands['move'] = {'direction': ['n','s','e','w']}
         else:
             # No user is logged in
-            state['user'] = User() # Emtpy user
+            state['user'] = User().to_dict() # Emtpy user
             # Login takes user/pass
             commands['login'] = {'name': None, 'password': None}
             # Register takes user/pass
