@@ -8,10 +8,11 @@ from game import Game
 from gevent.server import StreamServer
 
 global log
+global args
 
 class ServerGameAdapter(object):
-    def __init__(self, log = None):
-        self.game = Game(log = log)
+    def __init__(self, log = None, bigbang = False):
+        self.game = Game(log = log, bigbang = bigbang)
 
     def save(self):
         return self.game.save()
@@ -27,6 +28,9 @@ class ServerGameAdapter(object):
 
     def join_game(self, parameters):
         return self.game.join_game(parameters['ship_name'])
+
+    def move(self, parameters):
+        return self.game.move(parameters['direction'])
 
 def json_repr(obj):
     """Represent instance of a class as JSON.
@@ -57,7 +61,7 @@ def json_repr(obj):
 def handle(socket, address):
     log.info("Connection received from %s" % str(address))
     log.info("Creating ServerGameAdapter...")
-    game = ServerGameAdapter(log = log)
+    game = ServerGameAdapter(log = log, bigbang = args.bigbang)
     fileobj = socket.makefile()
 
     while True:
@@ -92,7 +96,9 @@ if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Process command line options.')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
+    parser.add_argument('--bigbang', action='store_true', help='Delete everything before starting')
     parser.add_argument('--version', action='version', version='0')
+    global args
     args = parser.parse_args()
 
     # Setup logging options

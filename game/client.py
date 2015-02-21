@@ -5,6 +5,7 @@ import logging
 import os
 import json
 import socket
+import pprint
 
 class _Getch:
     """Gets a single character from standard input.  Does not echo to the
@@ -56,10 +57,13 @@ class Menu(object):
         # Commands can be empty from the server (for development)
         self.commands = commands or self.commands
 
+        # Initialize the command to request state
+        request_state_command = {'state': {} }
+
         if self.state:
             print "State\n%s\n%s" % (
                 '=' * 5,
-                str(self.state)
+                pprint.pformat(self.state)
             )
 
             command_menu = self.command_dict(self.commands)
@@ -82,15 +86,29 @@ class Menu(object):
                 command_to_server = { command: {} }
                 # Get additional input for this command
                 for param in self.commands[command]:
-                    entry = raw_input("%s: " % str(param))
-                    command_to_server[command][param] = entry
+                    if isinstance(self.commands[command][param],list):
+                        # Possible answers are provided, select one
+                        user_choice = ""
+                        while user_choice not in self.commands[command][param]:
+                            print "\nEnter to cancel\n%s (%s) > " % (
+                                str(param),
+                                ",".join(self.commands[command][param])
+                            ),
+                            user_choice = getch().lower()
+                            if user_choice == '\r':
+                                # Cancelled command, return nothing
+                                return request_state_command
+                        command_to_server[command][param] = user_choice
+                    else:
+                        entry = raw_input("%s: " % str(param))
+                        command_to_server[command][param] = entry
                 return command_to_server
             else:
                 # Invalid input, try again
                 pass
 
         # If there are no commands, then just request state
-        return {'state': {} }
+        return request_state_command
 
     def command_dict(self, commands):
         """Return a dictionary with menu keys that correlate to commands."""

@@ -5,131 +5,35 @@ import json
 import yaml
 import uuid
 import datetime
-
-class Serializable(yaml.YAMLObject):
-    """Required to call __init__ on an object as it is loaded from YAML"""
-    __metaclass__ = yaml.YAMLObjectMetaclass
-
-    @classmethod
-    def to_yaml(cls, dumper, data):
-        return ordered_dump(dumper, '!{0}'.format(data.__class__.__name__),
-                            data.__dict__)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        print "loading object from yaml, fields: %s" % str(fields)
-        return cls(**fields)
-
-class GameObject(yaml.YAMLObject):
-    __metaclass__ = yaml.YAMLObjectMetaclass
-
-    def __init__(self):
-        super(GameObject,self).__init__()
-        # Call byteify to make sure all unicode variables are saved as strings
-        # This makes it easier to save in yaml
-        self.__dict__ = self.byteify(self.__dict__)
-
-    def byteify(self, data):
-        """Make sure everything in data is a string, not unicode (for nicer yaml)."""
-        if isinstance(data, dict):
-            result = {}
-            for key, value in data.iteritems():
-                if isinstance(key, unicode):
-                    key = key.encode('utf-8')
-                if isinstance(value, unicode):
-                    value = value.encode('utf-8')
-                if isinstance(value, dict) or isinstance(value, list):
-                    value = self.byteify(value)
-                result[key] = value
-        elif isinstance(data, list):
-            result = []
-            for item in data:
-                if isinstance(item, unicode):
-                    item = item.encode('utf-8')
-                if isinstance(item, dict) or isinstance(item, list):
-                    item = self.byteify(value)
-        else:
-            result = None
-
-        return result
-
-    def __repr__(self):
-        return str(self.__dict__)
-
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        return cls(**fields)
-
-class User(GameObject):
-    yaml_tag = "!User"
-
-    STATUS = [
-        'new',
-        'alive',
-        'dead',
-    ]
-
-    def __init__(
-        self,
-        name = None,
-        password = None,
-        token = None,
-        status = 'new',
-        location_id = None
-    ):
-        self.name = name
-        self.password = password
-        self.token = token
-        self.status = status
-        self.location_id = location_id
-
-        # Parent init should be called at end of __init__
-        super(User,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, status=%s)" % (
-            self.__class__.__name__, self.name, self.status)
-
-    # @staticmethod
-    # def load(loader, node):
-    #    values = loader.construct_mapping(node, deep=True)
-    #    return User(**values)
-# yaml.Loader.add_constructor('!User', User.load)
-
-class Ship(GameObject):
-    yaml_tag = "!Ship"
-
-    def __init__(
-        self,
-        name = None,
-        id = str(uuid.uuid4())
-    ):
-        self.name = name
-        self.id = id
-
-        # Parent init should be called at end of __init__
-        super(Ship,self).__init__()
-
-    def __str__(self):
-        return "%s (name=%s, id=%s)" % (
-            self.__class__.__name__,
-            self.name,
-            self.id,
-        )
+import shutil
+from random import randint
+from user import User
+from ship import Ship
+from sector import Sector
+from coordinates import Coordinates
 
 class Game(object):
     # Objects shared between all instances of Game
     _users = {}
     _ships = {}
-    shared_objects = ['users','ships']
+    _sectors = {}
+    shared_objects = ['users','ships','sectors']
 
-    def __init__(self, data_dir = 'data', log = None):
+    def __init__(self, data_dir = 'data', log = None, bigbang = False):
         self.log = log
         self.file = file
-
         self.data_dir = data_dir
+
+        if bigbang:
+            # Delete data directory if bigbang is True
+            self.log.warning("Performing big bang...")
+            if os.path.isdir(self.data_dir):
+                self.log.info("Deleting data directory '%s'..." % str(self.data_dir))
+                shutil.rmtree(self.data_dir)
+            # Set bigbang to False to make sure we don't delete data on next login
+            self.log.info("Big Bang complete, it will not be run again until the game is restarted")
+            self.bigbang = False
+
         self.log.info("Verifying data directory exists (%s)..." % str(self.data_dir))
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
@@ -177,31 +81,46 @@ class Game(object):
         self.log.info("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
 
-    @property
-    def location(self):
+    def location(self, of):
         """Return location object for the user's current location"""
-        if self.logged_in_user.location_id:
-            loc_id = self.logged_in_user.location_id
-            if loc_id in Game._ships.keys():
-                return Game._ships[loc_id]
+        if hasattr(of, 'location_id'):
+            if of.location_id in Game._ships.keys():
+                return Game._ships[of.location_id]
+        if hasattr(of, 'coordinates'):
+            if of.coordinates in Game._sectors.keys():
+                return Game._sectors[of.coordinates]
         return None
 
     def state(self):
         """Return the state and commands dictionary for the currently
         logged in user.
+
+        The state must be returned as a dictionary, so it can be
+        converted correctly to json. This means that objects must be
+        converted to a dictionary before being returned.
         """
 
         self.log.info("Generating state...")
+        # Define Flags
         flags = {}
         flags['logged_in'] = True if self.logged_in_user else False
         flags['joined_game'] = True if (
             flags['logged_in'] and
             self.logged_in_user.status != 'new'
         ) else False
+        user_location = self.location(of = self.logged_in_user) if flags['joined_game'] else None
         flags['in_ship'] = True if (
             flags['logged_in'] and
-            self.location.__class__.__name__ == 'Ship'
+            user_location and
+            user_location.__class__.__name__ == 'Ship'
         ) else False
+        ship_location = self.location(of = user_location) if flags['in_ship'] else None
+        flags['in_sector'] = True if (
+            flags['in_ship'] and
+            ship_location and
+            ship_location.__class__.__name__ == 'Sector'
+        ) else False
+        # Flags are defined
 
         self.log.info("State flags are %s" % str(flags))
         state = {} # Initialize
@@ -209,16 +128,21 @@ class Game(object):
 
         if flags['logged_in']:
             # Return __dict__ for json
-            state['user'] = self.logged_in_user.__dict__
+            state['user'] = self.logged_in_user.to_dict()
             if not flags['joined_game']:
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
 
             if flags['in_ship']:
-                state['location'] = self.location.__dict__
+                state['user_location'] = user_location.to_dict()
+
+            if flags['in_sector']:
+                state['sector'] = ship_location.to_dict()
+                state['sector']['coordinates'] = user_location.coordinates.to_dict()
+                commands['move'] = {'direction': ['n','s','e','w']}
         else:
             # No user is logged in
-            state['user'] = User().__dict__ # Emtpy user
+            state['user'] = User().to_dict() # Emtpy user
             # Login takes user/pass
             commands['login'] = {'name': None, 'password': None}
             # Register takes user/pass
@@ -285,6 +209,60 @@ class Game(object):
         # Mark player as not-new
         self.logged_in_user.status = 'alive'
 
+        # Spawn the ship
+        self.spawn(ship)
+
         # Return result
         self.log.info("Ship '%s' created" % (str(ship.name)))
         return True
+
+    def spawn(self, ship):
+        """
+        Spawn a ship in sector (0,0,0)
+        """
+        coordinates = Coordinates(0,0,0)
+        self.log.info("Requesting sector at %s..." % str(coordinates))
+        sector = self.sector(coordinates)
+        self.log.info("Spawning ship '%s' in sector '%s' (%s)..." % (
+            str(ship),
+            str(sector),
+            str(coordinates),
+        ))
+        ship.coordinates = coordinates
+        return True
+
+    def move(self, cardinal_direction):
+        """
+        Move the current player's ship in a cardinal direction (N-S-E-W)
+        """
+        if cardinal_direction.lower() in ['n','s','e','w']:
+            ship = self.location(of = self.logged_in_user)
+            ship.coordinates = ship.coordinates.adjacent(cardinal_direction)
+
+            # Call self.sector() so the sector is generated, if necessary
+            self.sector(ship.coordinates)
+
+    def sector(self, coordinates):
+        """
+        Return a sector (lookup by name)
+
+        If the sector is not found, it will be generated
+        """
+        if coordinates in self._sectors.keys():
+            sector = self._sectors[coordinates]
+            self.log.info("Sector at %s exists, returning %s..." % (
+                str(coordinates),
+                str(sector),
+            ))
+            return sector
+
+        # Sector doesn't exit, create it
+        self.log.info("Sector at %s does not exist, generating new sector..." % str(coordinates))
+        new_sector = Sector(name = 'M-' + str(randint(0,1000)))
+        self._sectors[coordinates] = new_sector
+        sector = self._sectors[coordinates]
+        if not sector:
+            self.log.error("Sector at %s could not be created" % str(coordinates))
+            return None
+        self.log.info("Sector at %s created, returning %s" % (str(coordinates),str(sector)))
+        return sector
