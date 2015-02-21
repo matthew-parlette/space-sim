@@ -138,7 +138,7 @@ class Game(object):
 
             if flags['in_sector']:
                 state['sector'] = ship_location.to_dict()
-                # state['sector']['coordinates'] = user_location.coordinates
+                state['sector']['coordinates'] = user_location.coordinates.to_dict()
                 commands['move'] = {'direction': ['n','s','e','w']}
         else:
             # No user is logged in
