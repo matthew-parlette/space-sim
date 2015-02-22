@@ -45,6 +45,7 @@ class _GetchWindows:
 
 
 getch = _Getch()
+args = None
 
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
@@ -61,6 +62,9 @@ class Menu(object):
         request_state_command = {'state': {} }
 
         if self.state:
+            if not args.debug:
+                # clear screen
+                os.system('clear')
             self.render_state(self.state, self.commands)
 
             command_menu = self.command_dict(self.commands)
@@ -71,6 +75,7 @@ class Menu(object):
 
             print "(? for menu) > ",
             input_string = getch()
+            print ""
 
             # Handle user input
             if input_string in command_menu.keys():
@@ -174,6 +179,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process command line options.')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--version', action='version', version='0')
+    global args
     args = parser.parse_args()
 
     # Setup logging options
@@ -183,10 +189,11 @@ if __name__ == "__main__":
     formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(funcName)s(%(lineno)i):%(message)s')
 
     ## Console Logging
-    ch = logging.StreamHandler()
-    ch.setLevel(log_level)
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
+    if args.debug:
+        ch = logging.StreamHandler()
+        ch.setLevel(log_level)
+        ch.setFormatter(formatter)
+        log.addHandler(ch)
 
     ## File Logging
     fh = logging.FileHandler(os.path.basename(__file__) + '.log')
