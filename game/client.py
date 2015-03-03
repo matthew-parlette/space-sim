@@ -65,9 +65,9 @@ class Menu(object):
             if not args.debug:
                 # clear screen
                 os.system('clear')
-            self.render_state(self.state, self.commands)
 
             command_menu = self.command_dict(self.commands)
+            self.render_state(self.state, self.commands, command_menu)
             # print "Commands\n%s\n%s" % (
             #     '=' * 8,
             #     '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()])
@@ -93,27 +93,43 @@ class Menu(object):
 
                 # User is not quitting, must be a valid command
                 command = command_menu[input_string]
+                # Default command to server is to simply request the state
                 command_to_server = request_state_command
+                # Do we need to get more input? Or just send the command?
                 if isinstance(command, str) or isinstance(command, unicode):
+                    # Command is just a string, what does the server need for
+                    # this command?
                     command_to_server = { command: {} }
-                    # Get additional input for this command
-                    for param in self.commands[command]:
-                        if isinstance(self.commands[command][param],list):
-                            # Possible answers are provided, select one
-                            user_choice = ""
-                            while user_choice not in self.commands[command][param]:
-                                print "\nEnter to cancel\n%s (%s) > " % (
-                                    str(param),
-                                    ",".join(self.commands[command][param])
-                                ),
-                                user_choice = getch().lower()
-                                if user_choice == '\r':
-                                    # Cancelled command, return nothing
-                                    return request_state_command
-                            command_to_server[command][param] = user_choice
-                        else:
-                            entry = raw_input("%s: " % str(param))
-                            command_to_server[command][param] = entry
+                    # The self.commands dictionary tells us what further
+                    # input is required. Login/Register is special
+                    if command in ['login','register']:
+                        self.render_bar(str(command).upper())
+                        username = raw_input("%s: " % "Username")
+                        command_to_server[command]['name'] = username
+                        password = raw_input("%s: " % "Password")
+                        command_to_server[command]['password'] = password
+                    else:
+                        # Command is not login or register, fallback to generic
+                        # command input
+                        for param in self.commands[command]:
+                            if isinstance(self.commands[command][param],list):
+                                # Possible answers are provided, select one
+                                user_choice = ""
+                                while user_choice not in self.commands[command][param]:
+                                    print "\nEnter to cancel\n%s (%s) > " % (
+                                        str(param),
+                                        ",".join(self.commands[command][param])
+                                    ),
+                                    user_choice = getch().lower()
+                                    if user_choice == '\r':
+                                        # Cancelled command, return nothing
+                                        return request_state_command
+                                command_to_server[command][param] = user_choice
+                            else:
+                                # Possible answers are not provided, assume
+                                # free form text
+                                entry = raw_input("%s: " % str(param))
+                                command_to_server[command][param] = entry
                 elif isinstance(command, dict):
                     # command is already a dictionary, send it to server
                     command_to_server = command
@@ -146,19 +162,21 @@ class Menu(object):
                     result[char] = key
                     break
 
+        self.log.info("command_dict loaded as %s" % str(result))
         return result
 
-    def render_state(self, state, commands):
-        print "State\n%s" % (
-            '=' * 5,
-        )
+    def render_state(self, state, commands, command_dict):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+
         if 'user' in state:
             if 'token' in state['user'] and state['user']['token']:
                 # User is logged in
                 print "Player: %s" % state['user']['name']
             else:
                 # User is not logged in
-                print "Player: Not logged in"
+                # print "Player: Not logged in"
+                self.render_login(state, commands, command_dict)
         if 'user_location' in state:
             if 'name' in state['user_location']:
                 print "In: %s (your ship)" % state['user_location']['name']
@@ -172,6 +190,31 @@ class Menu(object):
             if 'move' in commands:
                 if 'direction' in commands['move']:
                     print "Warps to: %s" % " - ".join(commands['move']['direction'])
+
+    def render_login(self, state, commands, command_dict):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        # title
+        self.render_bar("Login or Register")
+        # main
+        print "| " + "".ljust(int(width) - 4) + " |"
+        for key in command_dict.keys():
+            if key not in ['q','?']:
+                print "| (%s)%s |" % (
+                    key.upper(),
+                    command_dict[key][1:].ljust(int(width) - 7),
+                )
+        print "| " + "".ljust(int(width) - 4) + " |"
+        # footer
+        self.render_bar()
+
+    def render_bar(self, text = None):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        print "-" * int(width)
+        if text:
+            print "| " + "Login".ljust(int(width) - 4) + " |"
+            print "-" * int(width)
 
 
 if __name__ == "__main__":
@@ -212,7 +255,7 @@ if __name__ == "__main__":
 
     fileobj = socket.makefile()
 
-    menu = Menu()
+    menu = Menu(log = log)
 
     while True:
         command = menu.display()
