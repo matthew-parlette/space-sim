@@ -172,30 +172,40 @@ class Menu(object):
         if 'user' in state:
             if 'token' in state['user'] and state['user']['token']:
                 # User is logged in
-                print "Player: %s" % state['user']['name']
+                # print "Player: %s" % state['user']['name']
+                if 'user_location' in state:
+                    if 'name' in state['user_location']:
+                        # User is in the game
+                        # print "In: %s (your ship)" % state['user_location']['name']
+                        if 'sector' in state:
+                            if 'name' in state['sector'] and 'coordinates' in state['sector']:
+                                # User is in a sector
+                                self.render_sector(state, commands)
+                    else:
+                        # User not in game
+                        pass
             else:
                 # User is not logged in
                 # print "Player: Not logged in"
-                self.render_login(state, commands, command_dict)
-        if 'user_location' in state:
-            if 'name' in state['user_location']:
-                print "In: %s (your ship)" % state['user_location']['name']
-        if 'sector' in state:
-            if 'name' in state['sector'] and 'coordinates' in state['sector']:
-                print "Sector: %s (%s,%s)" % (
-                    state['sector']['name'],
-                    state['sector']['coordinates']['x'],
-                    state['sector']['coordinates']['y'],
+                self.render_options(
+                    command_dict,
+                    "Welcome"
                 )
-            if 'move' in commands:
-                if 'direction' in commands['move']:
-                    print "Warps to: %s" % " - ".join(commands['move']['direction'])
 
-    def render_login(self, state, commands, command_dict):
+    def render_options(self, command_dict, title = None):
+        """
+        Render all available options on the screen.
+
+        This skips the quit and help (?) commands, since they are common.
+
+        The display assumes the first character of each option string is the
+        command (single character that is the key for the command in
+        command_dict).
+        """
         # Get the console dimensions
         height, width = os.popen('stty size', 'r').read().split()
         # title
-        self.render_bar("Login or Register")
+        self.render_bar(title)
         # main
         print "| " + "".ljust(int(width) - 4) + " |"
         for key in command_dict.keys():
@@ -213,9 +223,50 @@ class Menu(object):
         height, width = os.popen('stty size', 'r').read().split()
         print "-" * int(width)
         if text:
-            print "| " + "Login".ljust(int(width) - 4) + " |"
+            self.render_line(text)
             print "-" * int(width)
 
+    def render_line(self, text = "", border = True):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        if border:
+            print "| " + text.ljust(int(width) - 4) + " |"
+        else:
+            print text
+
+    def render_sector(self, state, commands):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        left_section_width = int(int(width) * 0.75)
+        main_display_height = int(height) - 5
+
+        self.render_bar("Sector %s (%s,%s)" % (
+            state['sector']['name'],
+            state['sector']['coordinates']['x'],
+            state['sector']['coordinates']['y'],
+        ))
+
+        # self.render_line("".ljust(left_section_width) + "| ")
+
+        left_screen = ["" for x in range(main_display_height)]
+        left_screen[-1] = "Warps to: "
+        left_screen[-1] += " - ".join(commands['move']['direction'])
+
+        right_screen = ["" for x in range(main_display_height)]
+        right_screen[1] = "Ship Information"
+        right_screen[2] = state['user_location']['name']
+
+        for i in range(0,main_display_height):
+            left = left_screen[i]
+            right = right_screen[i]
+            self.render_line(
+                "%s| %s" % (
+                    left.ljust(left_section_width),
+                    right,
+                )
+            )
+
+        self.render_bar()
 
 if __name__ == "__main__":
     # Parse command line arguments
