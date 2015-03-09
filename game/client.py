@@ -45,6 +45,7 @@ class _GetchWindows:
 
 
 getch = _Getch()
+args = None
 
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
@@ -61,47 +62,77 @@ class Menu(object):
         request_state_command = {'state': {} }
 
         if self.state:
-            print "State\n%s\n%s" % (
-                '=' * 5,
-                pprint.pformat(self.state)
-            )
+            if not args.debug:
+                # clear screen
+                os.system('clear')
 
             command_menu = self.command_dict(self.commands)
-            print "Commands\n%s\n%s" % (
-                '=' * 8,
-                '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()])
-            )
+            self.render_state(self.state, self.commands, command_menu)
+            # print "Commands\n%s\n%s" % (
+            #     '=' * 8,
+            #     '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()])
+            # )
 
-            print "> ",
+            print "(? for menu) > ",
             input_string = getch()
+            print ""
 
             # Handle user input
             if input_string in command_menu.keys():
                 # Is the user trying to quit?
                 if input_string == 'q':
                     return None
+                if input_string == '?':
+                    print "\n%s\nCommands\n%s\n%s\n%s" % (
+                        '=' * 15,
+                        '-' * 8,
+                        '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()]),
+                        '=' * 15,
+                    )
+                    return request_state_command
 
                 # User is not quitting, must be a valid command
                 command = command_menu[input_string]
-                command_to_server = { command: {} }
-                # Get additional input for this command
-                for param in self.commands[command]:
-                    if isinstance(self.commands[command][param],list):
-                        # Possible answers are provided, select one
-                        user_choice = ""
-                        while user_choice not in self.commands[command][param]:
-                            print "\nEnter to cancel\n%s (%s) > " % (
-                                str(param),
-                                ",".join(self.commands[command][param])
-                            ),
-                            user_choice = getch().lower()
-                            if user_choice == '\r':
-                                # Cancelled command, return nothing
-                                return request_state_command
-                        command_to_server[command][param] = user_choice
+                # Default command to server is to simply request the state
+                command_to_server = request_state_command
+                # Do we need to get more input? Or just send the command?
+                if isinstance(command, str) or isinstance(command, unicode):
+                    # Command is just a string, what does the server need for
+                    # this command?
+                    command_to_server = { command: {} }
+                    # The self.commands dictionary tells us what further
+                    # input is required. Login/Register is special
+                    if command in ['login','register']:
+                        self.render_bar(str(command).upper())
+                        username = raw_input("%s: " % "Username")
+                        command_to_server[command]['name'] = username
+                        password = raw_input("%s: " % "Password")
+                        command_to_server[command]['password'] = password
                     else:
-                        entry = raw_input("%s: " % str(param))
-                        command_to_server[command][param] = entry
+                        # Command is not login or register, fallback to generic
+                        # command input
+                        for param in self.commands[command]:
+                            if isinstance(self.commands[command][param],list):
+                                # Possible answers are provided, select one
+                                user_choice = ""
+                                while user_choice not in self.commands[command][param]:
+                                    print "\nEnter to cancel\n%s (%s) > " % (
+                                        str(param),
+                                        ",".join(self.commands[command][param])
+                                    ),
+                                    user_choice = getch().lower()
+                                    if user_choice == '\r':
+                                        # Cancelled command, return nothing
+                                        return request_state_command
+                                command_to_server[command][param] = user_choice
+                            else:
+                                # Possible answers are not provided, assume
+                                # free form text
+                                entry = raw_input("%s: " % str(param))
+                                command_to_server[command][param] = entry
+                elif isinstance(command, dict):
+                    # command is already a dictionary, send it to server
+                    command_to_server = command
                 return command_to_server
             else:
                 # Invalid input, try again
@@ -114,21 +145,135 @@ class Menu(object):
         """Return a dictionary with menu keys that correlate to commands."""
         result = {
             'q': 'quit', # Default to support quit on the client side
+            '?': 'help', # Show help menu
         }
 
+        # The move command is special, add the possible move
+        # directions to the command dict
+        if 'move' in commands and 'direction' in commands['move']:
+            for direction in commands['move']['direction']:
+                if direction not in result.keys():
+                    result[direction] = {'move': {'direction': direction}}
+
+        # Go through the rest of the commands
         for key,value in commands.iteritems():
-            for c in key:
-                if c not in result.keys():
-                    result[c] = key
+            for char in key:
+                if char not in result.keys():
+                    result[char] = key
                     break
 
+        self.log.info("command_dict loaded as %s" % str(result))
         return result
+
+    def render_state(self, state, commands, command_dict):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+
+        if 'user' in state:
+            if 'token' in state['user'] and state['user']['token']:
+                # User is logged in
+                # print "Player: %s" % state['user']['name']
+                if 'user_location' in state:
+                    if 'name' in state['user_location']:
+                        # User is in the game
+                        # print "In: %s (your ship)" % state['user_location']['name']
+                        if 'sector' in state:
+                            if 'name' in state['sector'] and 'coordinates' in state['sector']:
+                                # User is in a sector
+                                self.render_sector(state, commands)
+                    else:
+                        # User not in game
+                        pass
+            else:
+                # User is not logged in
+                # print "Player: Not logged in"
+                self.render_options(
+                    command_dict,
+                    "Welcome"
+                )
+
+    def render_options(self, command_dict, title = None):
+        """
+        Render all available options on the screen.
+
+        This skips the quit and help (?) commands, since they are common.
+
+        The display assumes the first character of each option string is the
+        command (single character that is the key for the command in
+        command_dict).
+        """
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        # title
+        self.render_bar(title)
+        # main
+        print "| " + "".ljust(int(width) - 4) + " |"
+        for key in command_dict.keys():
+            if key not in ['q','?']:
+                print "| (%s)%s |" % (
+                    key.upper(),
+                    command_dict[key][1:].ljust(int(width) - 7),
+                )
+        print "| " + "".ljust(int(width) - 4) + " |"
+        # footer
+        self.render_bar()
+
+    def render_bar(self, text = None):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        print "-" * int(width)
+        if text:
+            self.render_line(text)
+            print "-" * int(width)
+
+    def render_line(self, text = "", border = True):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        if border:
+            print "| " + text.ljust(int(width) - 4) + " |"
+        else:
+            print text
+
+    def render_sector(self, state, commands):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        left_section_width = int(int(width) * 0.75)
+        main_display_height = int(height) - 5
+
+        self.render_bar("Sector %s (%s,%s)" % (
+            state['sector']['name'],
+            state['sector']['coordinates']['x'],
+            state['sector']['coordinates']['y'],
+        ))
+
+        # self.render_line("".ljust(left_section_width) + "| ")
+
+        left_screen = ["" for x in range(main_display_height)]
+        left_screen[-1] = "Warps to: "
+        left_screen[-1] += " - ".join(commands['move']['direction'])
+
+        right_screen = ["" for x in range(main_display_height)]
+        right_screen[1] = "Ship Information"
+        right_screen[2] = state['user_location']['name']
+
+        for i in range(0,main_display_height):
+            left = left_screen[i]
+            right = right_screen[i]
+            self.render_line(
+                "%s| %s" % (
+                    left.ljust(left_section_width),
+                    right,
+                )
+            )
+
+        self.render_bar()
 
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Process command line options.')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--version', action='version', version='0')
+    global args
     args = parser.parse_args()
 
     # Setup logging options
@@ -138,10 +283,11 @@ if __name__ == "__main__":
     formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(funcName)s(%(lineno)i):%(message)s')
 
     ## Console Logging
-    ch = logging.StreamHandler()
-    ch.setLevel(log_level)
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
+    if args.debug:
+        ch = logging.StreamHandler()
+        ch.setLevel(log_level)
+        ch.setFormatter(formatter)
+        log.addHandler(ch)
 
     ## File Logging
     fh = logging.FileHandler(os.path.basename(__file__) + '.log')
@@ -160,7 +306,7 @@ if __name__ == "__main__":
 
     fileobj = socket.makefile()
 
-    menu = Menu()
+    menu = Menu(log = log)
 
     while True:
         command = menu.display()

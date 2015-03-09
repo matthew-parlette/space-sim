@@ -1,4 +1,5 @@
 import yaml
+from copy import deepcopy
 
 class GameObject(yaml.YAMLObject):
     __metaclass__ = yaml.YAMLObjectMetaclass
@@ -42,7 +43,7 @@ class GameObject(yaml.YAMLObject):
         return str(self.__dict__)
 
     def to_dict(self):
-        return self.__dict__
+        return deepcopy(self.__dict__)
 
     @classmethod
     def from_yaml(cls, loader, node):
