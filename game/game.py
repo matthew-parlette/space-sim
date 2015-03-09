@@ -7,10 +7,10 @@ import uuid
 import datetime
 import shutil
 from random import randint
-from user import User
-from ship import Ship
-from sector import Sector
-from coordinates import Coordinates
+from objects.user import User
+from objects.ship import Ship
+from objects.sector import Sector
+from objects.coordinates import Coordinates
 
 class Game(object):
     # Objects shared between all instances of Game
