@@ -249,7 +249,10 @@ class Menu(object):
         # self.render_line("".ljust(left_section_width) + "| ")
 
         left_screen = ["" for x in range(main_display_height)]
-        left_screen[-1] = "Warps to: "
+        if 'stars' in state['sector'] and state['sector']['stars']:
+            left_screen[1]   = "Stars: "
+            left_screen[1]  += " - ".join([star['name'] for star in state['sector']['stars']])
+        left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
         right_screen = ["" for x in range(main_display_height)]

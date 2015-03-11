@@ -6,18 +6,29 @@ import yaml
 import uuid
 import datetime
 import shutil
-from random import randint
+from random import randint, random
+from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
 from objects.sector import Sector
-from objects.coordinates import Coordinates
+from objects.star import Star
+
+class_to_shared_object = {
+    'Star': 'stars',
+}
 
 class Game(object):
     # Objects shared between all instances of Game
     _users = {}
     _ships = {}
     _sectors = {}
-    shared_objects = ['users','ships','sectors']
+    _stars = {}
+    shared_objects = ['users','ships','sectors','stars']
+    new_object_probability = {
+        # Key must match object class name
+        # Values between 0 and 1
+        'Star': 0.3,
+    }
 
     def __init__(self, data_dir = 'data', log = None, bigbang = False):
         self.log = log
@@ -139,6 +150,13 @@ class Game(object):
             if flags['in_sector']:
                 state['sector'] = ship_location.to_dict()
                 state['sector']['coordinates'] = user_location.coordinates.to_dict()
+                contents = self.get_contents(user_location.coordinates)
+                for obj in contents:
+                    heading = class_to_shared_object[obj.__class__.__name__]
+                    if heading in state['sector']:
+                        state['sector'][heading].append(obj.to_dict())
+                    else:
+                        state['sector'][heading] = [obj.to_dict()]
                 commands['move'] = {'direction': ['n','s','e','w']}
         else:
             # No user is logged in
@@ -149,6 +167,7 @@ class Game(object):
             commands['register'] = {'name': None, 'password': None}
 
         self.log.info("Returning state of %s..." % str(state))
+        self.log.info("Returning commands of %s..." % str(commands))
         return state, commands
 
     def register(self, name, password):
@@ -261,8 +280,50 @@ class Game(object):
         new_sector = Sector(name = 'M-' + str(randint(0,1000)))
         self._sectors[coordinates] = new_sector
         sector = self._sectors[coordinates]
+        for object_name, probability in self.new_object_probability.iteritems():
+            self.log.debug("Probability of %s to generate a %s" % (
+                str(probability),
+                str(object_name),
+            ))
+            while random() <= probability:
+                # Create a new object
+                self.log.info("Roll passed, generating new %s in %s" % (
+                    str(object_name),
+                    str(coordinates),
+                ))
+                new_object = globals()[object_name]()
+                new_object.coordinates = coordinates
+                shared_dict = getattr(Game,'_' + class_to_shared_object[object_name])
+                if coordinates in shared_dict:
+                    shared_dict[coordinates].append(new_object)
+                else:
+                    shared_dict[coordinates] = [new_object]
+                self.log.info("Generated new %s in %s: %s" % (
+                    str(object_name),
+                    str(coordinates),
+                    str(new_object),
+                ))
+
         if not sector:
             self.log.error("Sector at %s could not be created" % str(coordinates))
             return None
         self.log.info("Sector at %s created, returning %s" % (str(coordinates),str(sector)))
         return sector
+
+    def get_contents(self, coordinates = None):
+        """
+        Return a list of the contents of a sector at the provided coordinates.
+        """
+        if not coordinates or not isinstance(coordinates,Coordinates):
+            self.log.warning("%s called without proper coordinates: %s (type %s)" % (
+                "Game.get_contents()",
+                str(coordinates),
+                str(coordinates.__class__.__name__),
+            ))
+            return []
+
+        contents = []
+        if coordinates in Game._stars:
+            contents += Game._stars[coordinates]
+        self.log.info("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
+        return contents
