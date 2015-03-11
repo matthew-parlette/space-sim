@@ -73,7 +73,7 @@ def handle(socket, address):
             break
         # Process line as a command
         command_dict = json.loads(line)
-        log.info("Command from client: '%s'" % str(command_dict))
+        log.debug("Command from client: '%s'" % str(command_dict))
         if len(command_dict.keys()) is 1:
             command = command_dict.keys()[0]
             method = getattr(game, str(command), None)

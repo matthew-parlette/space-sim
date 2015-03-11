@@ -45,7 +45,7 @@ class Game(object):
             self.log.info("Big Bang complete, it will not be run again until the game is restarted")
             self.bigbang = False
 
-        self.log.info("Verifying data directory exists (%s)..." % str(self.data_dir))
+        self.log.debug("Verifying data directory exists (%s)..." % str(self.data_dir))
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
 
@@ -58,27 +58,27 @@ class Game(object):
         self.log.info("Saving shared objects to disk")
         for obj in Game.shared_objects:
             if getattr(Game, '_' + obj, None):
-                self.log.info("Saving shared object '%s'..." % str(obj))
-                self.log.info("Shared object '%s' is %s" % (str(obj),str(getattr(Game, '_' + obj))))
+                self.log.debug("Saving shared object '%s'..." % str(obj))
+                self.log.debug("Shared object '%s' is %s" % (str(obj),str(getattr(Game, '_' + obj))))
                 with open(os.path.join(self.data_dir,obj + '.yaml'), 'w') as outfile:
                     outfile.write(yaml.dump(getattr(Game, '_' + obj),
                                             default_flow_style = False))
             else:
-                self.log.info("'%s' shared object is empty, skipping..." % str(obj))
+                self.log.debug("'%s' shared object is empty, skipping..." % str(obj))
 
     def load_shared_object(self, name):
         friendly_name = name
         object_name = '_' + name
         filename = os.path.join(self.data_dir,friendly_name + '.yaml')
-        self.log.info("Loading shared object '%s'" % str(friendly_name))
+        self.log.debug("Loading shared object '%s'" % str(friendly_name))
         # Do we need to initialize the shared object?
         if getattr(Game, object_name, None):
-            self.log.info("Shared object '%s' is available" % str(friendly_name))
+            self.log.debug("Shared object '%s' is available" % str(friendly_name))
         else:
-            self.log.info("Shared object '%s' is empty, initializing..." % str(friendly_name))
+            self.log.debug("Shared object '%s' is empty, initializing..." % str(friendly_name))
             # Shared object is empty, can we load it from a file?
             if os.path.isfile(filename):
-                self.log.info("Loading shared object '%s' from %s..." % (str(friendly_name),
+                self.log.debug("Loading shared object '%s' from %s..." % (str(friendly_name),
                                                                          str(filename)))
                 loaded_obj = yaml.load(open(filename))
                 # for key, value in loaded_obj.iteritems():
@@ -86,10 +86,10 @@ class Game(object):
                     # self.log.info("Loaded %s of type %s" % (str(loaded_obj),str(loaded_obj.__class__.__name__)))
                 setattr(Game, object_name, loaded_obj)
             else:
-                self.log.info("File not found, creating a new shared object '%s'..." %
+                self.log.debug("File not found, creating a new shared object '%s'..." %
                     str(friendly_name))
 
-        self.log.info("load_shared_object() done, shared object '%s' is %s" %
+        self.log.debug("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
 
     def location(self, of):
@@ -111,7 +111,7 @@ class Game(object):
         converted to a dictionary before being returned.
         """
 
-        self.log.info("Generating state...")
+        self.log.debug("Generating state...")
         # Define Flags
         flags = {}
         flags['logged_in'] = True if self.logged_in_user else False
@@ -133,7 +133,7 @@ class Game(object):
         ) else False
         # Flags are defined
 
-        self.log.info("State flags are %s" % str(flags))
+        self.log.debug("State flags are %s" % str(flags))
         state = {} # Initialize
         commands = {} # Initialize
 
@@ -166,8 +166,8 @@ class Game(object):
             # Register takes user/pass
             commands['register'] = {'name': None, 'password': None}
 
-        self.log.info("Returning state of %s..." % str(state))
-        self.log.info("Returning commands of %s..." % str(commands))
+        self.log.debug("Returning state of %s..." % str(state))
+        self.log.debug("Returning commands of %s..." % str(commands))
         return state, commands
 
     def register(self, name, password):
@@ -186,22 +186,23 @@ class Game(object):
     def login(self, name, password):
         if name and password:
             if name in Game._users.keys():
-                self.log.info("Username '%s' found in user database" % str(name))
-                self.log.info("Password loaded for '%s' as '%s'" % (
+                self.log.debug("Username '%s' found in user database" % str(name))
+                self.log.debug("Password loaded for '%s' as '%s'" % (
                     Game._users[str(name)],
                     Game._users[str(name)].password,
                 ))
                 if password == Game._users[str(name)].password:
-                    self.log.info("Login successful, setting logged in user to %s..." % str(Game._users[str(name)]))
+                    self.log.info("Login successful for %s" % str(name))
+                    self.log.debug("Setting logged in user to %s..." % str(Game._users[str(name)]))
                     self.logged_in_user = Game._users[str(name)]
                     if Game._users[str(name)].token:
                         # Token exists
-                        self.log.info("Token reused. User state is %s" % Game._users[str(name)])
+                        self.log.debug("Token reused. User state is %s" % Game._users[str(name)])
                         return True
                     else:
                         # Generate token
                         Game._users[str(name)].token = str(uuid.uuid4())
-                        self.log.info("Token generated. User state is %s" % Game._users[str(name)])
+                        self.log.debug("Token generated. User state is %s" % Game._users[str(name)])
                         return True
                 else:
                     self.log.error("Login failed, incorrect password for '%s'" % str(name))
@@ -240,7 +241,7 @@ class Game(object):
         Spawn a ship in sector (0,0,0)
         """
         coordinates = Coordinates(0,0,0)
-        self.log.info("Requesting sector at %s..." % str(coordinates))
+        self.log.debug("Requesting sector at %s..." % str(coordinates))
         sector = self.sector(coordinates)
         self.log.info("Spawning ship '%s' in sector '%s' (%s)..." % (
             str(ship),
@@ -269,14 +270,17 @@ class Game(object):
         """
         if coordinates in self._sectors.keys():
             sector = self._sectors[coordinates]
-            self.log.info("Sector at %s exists, returning %s..." % (
+            self.log.debug("Sector at %s exists, returning %s..." % (
                 str(coordinates),
                 str(sector),
             ))
             return sector
 
         # Sector doesn't exit, create it
-        self.log.info("Sector at %s does not exist, generating new sector..." % str(coordinates))
+        self.log.info("Sector at (%s,%s) does not exist, generating new sector..." % (
+            str(coordinates.x),
+            str(coordinates.y)
+        ))
         new_sector = Sector(name = 'M-' + str(randint(0,1000)))
         self._sectors[coordinates] = new_sector
         sector = self._sectors[coordinates]
@@ -287,7 +291,7 @@ class Game(object):
             ))
             while random() <= probability:
                 # Create a new object
-                self.log.info("Roll passed, generating new %s in %s" % (
+                self.log.debug("Roll passed, generating new %s in %s" % (
                     str(object_name),
                     str(coordinates),
                 ))
@@ -298,7 +302,7 @@ class Game(object):
                     shared_dict[coordinates].append(new_object)
                 else:
                     shared_dict[coordinates] = [new_object]
-                self.log.info("Generated new %s in %s: %s" % (
+                self.log.debug("Generated new %s in %s: %s" % (
                     str(object_name),
                     str(coordinates),
                     str(new_object),
@@ -307,7 +311,8 @@ class Game(object):
         if not sector:
             self.log.error("Sector at %s could not be created" % str(coordinates))
             return None
-        self.log.info("Sector at %s created, returning %s" % (str(coordinates),str(sector)))
+        self.log.info("Sector at (%s,%s) created" % (str(coordinates.x),str(coordinates.y)))
+        self.log.debug("Returning %s" % (str(sector)))
         return sector
 
     def get_contents(self, coordinates = None):
@@ -325,5 +330,5 @@ class Game(object):
         contents = []
         if coordinates in Game._stars:
             contents += Game._stars[coordinates]
-        self.log.info("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
+        self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
