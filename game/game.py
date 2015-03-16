@@ -12,9 +12,11 @@ from objects.user import User
 from objects.ship import Ship
 from objects.sector import Sector
 from objects.star import Star
+from objects.planet import Planet
 
 class_to_shared_object = {
     'Star': 'stars',
+    'Planet': 'planets',
 }
 
 class Game(object):
@@ -23,11 +25,13 @@ class Game(object):
     _ships = {}
     _sectors = {}
     _stars = {}
-    shared_objects = ['users','ships','sectors','stars']
+    _planets = {}
+    shared_objects = ['users','ships','sectors','stars','planets']
     new_object_probability = {
         # Key must match object class name
         # Values between 0 and 1
-        'Star': 0.3,
+        'Star': 0.5,
+        'Planet': 0.5,
     }
 
     def __init__(self, data_dir = 'data', log = None, bigbang = False):
@@ -330,5 +334,7 @@ class Game(object):
         contents = []
         if coordinates in Game._stars:
             contents += Game._stars[coordinates]
+        if coordinates in Game._planets:
+            contents += Game._planets[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents

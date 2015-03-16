@@ -252,6 +252,9 @@ class Menu(object):
         if 'stars' in state['sector'] and state['sector']['stars']:
             left_screen[1]   = "Stars: "
             left_screen[1]  += " - ".join([star['name'] for star in state['sector']['stars']])
+        if 'planets' in state['sector'] and state['sector']['planets']:
+            left_screen[3]   = "Planets: "
+            left_screen[3]  += " - ".join([planet['name'] for planet in state['sector']['planets']])
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
