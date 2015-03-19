@@ -1,4 +1,5 @@
 import yaml
+import uuid
 from copy import deepcopy
 
 class GameObject(yaml.YAMLObject):
