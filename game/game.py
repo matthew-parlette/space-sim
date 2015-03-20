@@ -10,7 +10,7 @@ from random import randint, random
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
-from objects.sector import Sector
+from objects.sector import Sector, SectorObject
 from objects.star import Star
 from objects.planet import Planet
 from objects.station import Station
@@ -338,11 +338,12 @@ class Game(object):
             return []
 
         contents = []
-        if coordinates in Game._stars:
-            contents += Game._stars[coordinates]
-        if coordinates in Game._planets:
-            contents += Game._planets[coordinates]
-        if coordinates in Game._stations:
-            contents += Game._stations[coordinates]
+        for child in SectorObject.__subclasses__():
+            # subclasses returns full path, ex: objects.star.Star
+            child_classname = child.__name__ # returns Star
+            if child_classname in class_to_shared_object:
+                shared_object = getattr(Game,'_' + class_to_shared_object[child_classname])
+                if shared_object and coordinates in shared_object:
+                    contents += shared_object[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
