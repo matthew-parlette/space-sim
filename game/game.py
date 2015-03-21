@@ -7,6 +7,7 @@ import uuid
 import datetime
 import shutil
 from random import randint, random
+from objects.base import GameObject
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
@@ -22,16 +23,6 @@ class_to_shared_object = {
 }
 
 class Game(object):
-    # Objects shared between all instances of Game
-    _users = {}
-    _ships = {}
-    _sectors = {}
-    _stars = {}
-    _planets = {}
-    _stations = {}
-    shared_objects = ['users','ships','sectors','stars','planets',
-        'stations',
-    ]
     new_object_probability = {
         # Key must match object class name
         # Values between 0 and 1
@@ -59,14 +50,23 @@ class Game(object):
         if not os.path.isdir(data_dir):
             os.makedirs(data_dir)
 
-        for obj in Game.shared_objects:
+        self.log.debug("Shared objects for all Game instances: %s" % str(self.shared_objects))
+        for obj in self.shared_objects:
             self.load_shared_object(obj)
 
         self.logged_in_user = None
 
+    @property
+    def shared_objects(self):
+        """Return a list of objects that are shared between all Game instances."""
+        top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
+            if obj.__name__ not in ['SectorObject','Coordinates']]
+        sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
+        return top_level + sector_objects
+
     def save(self):
         self.log.info("Saving shared objects to disk")
-        for obj in Game.shared_objects:
+        for obj in self.shared_objects:
             if getattr(Game, '_' + obj, None):
                 self.log.debug("Saving shared object '%s'..." % str(obj))
                 self.log.debug("Shared object '%s' is %s" % (str(obj),str(getattr(Game, '_' + obj))))
@@ -91,9 +91,6 @@ class Game(object):
                 self.log.debug("Loading shared object '%s' from %s..." % (str(friendly_name),
                                                                          str(filename)))
                 loaded_obj = yaml.load(open(filename))
-                # for key, value in loaded_obj.iteritems():
-
-                    # self.log.info("Loaded %s of type %s" % (str(loaded_obj),str(loaded_obj.__class__.__name__)))
                 setattr(Game, object_name, loaded_obj)
             else:
                 self.log.debug("File not found, creating a new shared object '%s'..." %

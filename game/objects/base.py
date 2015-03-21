@@ -43,6 +43,10 @@ class GameObject(yaml.YAMLObject):
     def __str__(self):
         return str(self.__dict__)
 
+    def plural(self, capitalized = False):
+        """Return the plural form of this object."""
+        return self.__class__.__name__.lower() + "s"
+
     def to_dict(self):
         return deepcopy(self.__dict__)
 
