@@ -16,12 +16,6 @@ from objects.star import Star
 from objects.planet import Planet
 from objects.station import Station
 
-class_to_shared_object = {
-    'Star': 'stars',
-    'Planet': 'planets',
-    'Station': 'stations',
-}
-
 class Game(object):
     new_object_probability = {
         # Key must match object class name
@@ -159,7 +153,7 @@ class Game(object):
                 state['sector']['coordinates'] = user_location.coordinates.to_dict()
                 contents = self.get_contents(user_location.coordinates)
                 for obj in contents:
-                    heading = class_to_shared_object[obj.__class__.__name__]
+                    heading = globals()[obj.__class__.__name__]().plural()
                     if heading in state['sector']:
                         state['sector'][heading].append(obj.to_dict())
                     else:
@@ -304,7 +298,7 @@ class Game(object):
                 ))
                 new_object = globals()[object_name]()
                 new_object.coordinates = coordinates
-                shared_dict = getattr(Game,'_' + class_to_shared_object[object_name])
+                shared_dict = getattr(Game,'_' + new_object.plural())
                 if coordinates in shared_dict:
                     shared_dict[coordinates].append(new_object)
                 else:
@@ -337,10 +331,9 @@ class Game(object):
         contents = []
         for child in SectorObject.__subclasses__():
             # subclasses returns full path, ex: objects.star.Star
-            child_classname = child.__name__ # returns Star
-            if child_classname in class_to_shared_object:
-                shared_object = getattr(Game,'_' + class_to_shared_object[child_classname])
-                if shared_object and coordinates in shared_object:
-                    contents += shared_object[coordinates]
+            # child.__name__ returns Star
+            shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
+            if shared_object and coordinates in shared_object:
+                contents += shared_object[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
