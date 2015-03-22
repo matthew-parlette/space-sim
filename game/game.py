@@ -15,6 +15,7 @@ from objects.sector import Sector, SectorObject
 from objects.star import Star
 from objects.planet import Planet
 from objects.station import Station
+from objects.port import Port
 
 class Game(object):
     new_object_probability = {
@@ -23,6 +24,7 @@ class Game(object):
         'Star': 0.5,
         'Planet': 0.5,
         'Station': 0.5,
+        'Port': 0.5,
     }
 
     def __init__(self, data_dir = 'data', log = None, bigbang = False):

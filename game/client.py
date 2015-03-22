@@ -258,6 +258,9 @@ class Menu(object):
         if 'stations' in state['sector'] and state['sector']['stations']:
             left_screen[5]   = "Stations: "
             left_screen[5]  += " - ".join([station['name'] for station in state['sector']['stations']])
+        if 'stations' in state['sector'] and state['sector']['stations']:
+            left_screen[7]   = "Ports: "
+            left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
