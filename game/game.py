@@ -89,6 +89,7 @@ class Game(object):
             else:
                 self.log.debug("File not found, creating a new shared object '%s'..." %
                     str(friendly_name))
+                setattr(Game, object_name, {})
 
         self.log.debug("load_shared_object() done, shared object '%s' is %s" %
             (str(friendly_name),str(getattr(Game, object_name))))
