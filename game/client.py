@@ -249,7 +249,19 @@ class Menu(object):
         # self.render_line("".ljust(left_section_width) + "| ")
 
         left_screen = ["" for x in range(main_display_height)]
-        left_screen[-1] = "Warps to: "
+        if 'stars' in state['sector'] and state['sector']['stars']:
+            left_screen[1]   = "Stars: "
+            left_screen[1]  += " - ".join([star['name'] for star in state['sector']['stars']])
+        if 'planets' in state['sector'] and state['sector']['planets']:
+            left_screen[3]   = "Planets: "
+            left_screen[3]  += " - ".join([planet['name'] for planet in state['sector']['planets']])
+        if 'stations' in state['sector'] and state['sector']['stations']:
+            left_screen[5]   = "Stations: "
+            left_screen[5]  += " - ".join([station['name'] for station in state['sector']['stations']])
+        if 'stations' in state['sector'] and state['sector']['stations']:
+            left_screen[7]   = "Ports: "
+            left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
+        left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
         right_screen = ["" for x in range(main_display_height)]
