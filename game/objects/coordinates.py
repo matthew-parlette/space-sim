@@ -1,5 +1,5 @@
 import uuid
-from base import GameObject
+from objects import GameObject
 
 class Coordinates(GameObject):
     """

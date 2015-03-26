@@ -1,6 +1,6 @@
 import uuid
-from base import GameObject
-from coordinates import Coordinates
+from objects import GameObject
+from objects.coordinates import Coordinates
 
 class Ship(GameObject):
     yaml_tag = "!Ship"
