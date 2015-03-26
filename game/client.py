@@ -267,6 +267,12 @@ class Menu(object):
         right_screen = ["" for x in range(main_display_height)]
         right_screen[1] = "Ship Information"
         right_screen[2] = state['user_location']['name']
+        for component in state['user_location']['components']:
+            if component['key'] in ['holds']:
+                right_screen[3] = "Cargo: %s/%s" % (
+                    str(0),
+                    str(component['count'])
+                )
 
         for i in range(0,main_display_height):
             left = left_screen[i]
