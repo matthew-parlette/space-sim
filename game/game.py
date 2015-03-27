@@ -10,6 +10,7 @@ from random import randint, random
 from objects import GameObject
 from objects.coordinates import Coordinates
 from objects.component.holds import CargoHolds
+from objects.system.computer import Computer
 from objects.user import User
 from objects.ship import Ship
 from objects.sector import Sector, SectorObject
@@ -57,7 +58,7 @@ class Game(object):
     def shared_objects(self):
         """Return a list of objects that are shared between all Game instances."""
         top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
-            if obj.__name__ not in ['SectorObject','Coordinates','Component']]
+            if obj.__name__ not in ['SectorObject','Coordinates','Component','System']]
         sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
         return top_level + sector_objects
 
@@ -228,9 +229,13 @@ class Game(object):
         components = [
             CargoHolds(count = 10),
         ]
+        systems = [
+            Computer(version = '1.0')
+        ]
         ship = Ship(
             name = ship_name,
             components = components,
+            systems = systems,
         )
         Game._ships[ship.id] = ship
 
