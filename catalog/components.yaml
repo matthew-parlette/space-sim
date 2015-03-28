@@ -1,0 +1,5 @@
+holds-10: !Component
+  count: 10
+  id: holds-10
+  key: holds
+  name: Cargo Holds

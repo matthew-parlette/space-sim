@@ -6,11 +6,12 @@ import yaml
 import uuid
 import datetime
 import shutil
+import copy
 from random import randint, random
 from objects import GameObject
+from objects.component import Component
+from objects.system import System
 from objects.coordinates import Coordinates
-from objects.component.holds import CargoHolds
-from objects.system.computer import Computer
 from objects.user import User
 from objects.ship import Ship
 from objects.sector import Sector, SectorObject
@@ -29,10 +30,14 @@ class Game(object):
         'Port': 0.5,
     }
 
-    def __init__(self, data_dir = 'data', log = None, bigbang = False):
+    catalogs = ['systems','components']
+
+    def __init__(self, data_dir = 'data',
+        catalog_dir = 'catalog', log = None, bigbang = False):
         self.log = log
         self.file = file
         self.data_dir = data_dir
+        self.catalog_dir = catalog_dir
 
         if bigbang:
             # Delete data directory if bigbang is True
@@ -50,7 +55,12 @@ class Game(object):
 
         self.log.debug("Shared objects for all Game instances: %s" % str(self.shared_objects))
         for obj in self.shared_objects:
-            self.load_shared_object(obj)
+            if obj in ['systems','components']:
+                # These are loaded from the catalog directory
+                self.load_shared_object(obj, working_dir = self.catalog_dir)
+            else:
+                # These are loaded from the data directory
+                self.load_shared_object(obj, working_dir = self.data_dir)
 
         self.logged_in_user = None
 
@@ -58,7 +68,7 @@ class Game(object):
     def shared_objects(self):
         """Return a list of objects that are shared between all Game instances."""
         top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
-            if obj.__name__ not in ['SectorObject','Coordinates','Component','System']]
+            if obj.__name__ not in ['SectorObject','Coordinates']]
         sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
         return top_level + sector_objects
 
@@ -66,18 +76,19 @@ class Game(object):
         self.log.info("Saving shared objects to disk")
         for obj in self.shared_objects:
             if getattr(Game, '_' + obj, None):
+                save_dir = self.data_dir if obj not in Game.catalogs else self.catalog_dir
                 self.log.debug("Saving shared object '%s'..." % str(obj))
                 self.log.debug("Shared object '%s' is %s" % (str(obj),str(getattr(Game, '_' + obj))))
-                with open(os.path.join(self.data_dir,obj + '.yaml'), 'w') as outfile:
+                with open(os.path.join(save_dir,obj + '.yaml'), 'w') as outfile:
                     outfile.write(yaml.dump(getattr(Game, '_' + obj),
                                             default_flow_style = False))
             else:
                 self.log.debug("'%s' shared object is empty, skipping..." % str(obj))
 
-    def load_shared_object(self, name):
+    def load_shared_object(self, name, working_dir):
         friendly_name = name
         object_name = '_' + name
-        filename = os.path.join(self.data_dir,friendly_name + '.yaml')
+        filename = os.path.join(working_dir,friendly_name + '.yaml')
         self.log.debug("Loading shared object '%s'" % str(friendly_name))
         # Do we need to initialize the shared object?
         if getattr(Game, object_name, None):
@@ -91,8 +102,11 @@ class Game(object):
                 loaded_obj = yaml.load(open(filename))
                 setattr(Game, object_name, loaded_obj)
             else:
-                self.log.debug("File not found, creating a new shared object '%s'..." %
-                    str(friendly_name))
+                self.log.debug("File not found (%s), creating a new shared object '%s'..." % (
+                    str(filename),
+                    str(friendly_name)),
+                )
+
                 setattr(Game, object_name, {})
 
         self.log.debug("load_shared_object() done, shared object '%s' is %s" %
@@ -219,6 +233,14 @@ class Game(object):
         self.log.error("Login failed, Name or password is missing")
         return False
 
+    def create_instance(self, game_obj):
+        """Create an instance of a catalog object.
+
+        This creates a copy of the object.
+        """
+        if game_obj:
+            return copy.deepcopy(game_obj)
+
     def join_game(self, ship_name):
         self.log.info("Creating new ship '%s' for user %s..." % (
             str(ship_name),
@@ -227,10 +249,10 @@ class Game(object):
 
         # Create ship
         components = [
-            CargoHolds(count = 10),
+            self.create_instance(Game._components['holds-10']),
         ]
         systems = [
-            Computer(version = '1.0')
+            self.create_instance(Game._systems['computer-1.0']),
         ]
         ship = Ship(
             name = ship_name,
