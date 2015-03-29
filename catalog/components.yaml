@@ -1,5 +1,7 @@
-holds-10: !Component
-  count: 10
-  id: holds-10
+holds: !Component
+  count: 1
+  id: holds
   key: holds
   name: Cargo Holds
+  provides:
+  - cargo

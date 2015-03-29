@@ -9,11 +9,13 @@ class Component(GameObject):
         name = None,
         id = str(uuid.uuid4()),
         key = 'component',
+        provides = [],
         count = 0,
     ):
         self.name = name
         self.id = id
         self.key = key
+        self.provides = provides
         self.count = count
 
         # Parent init should be called at end of __init__

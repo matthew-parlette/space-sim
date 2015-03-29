@@ -233,13 +233,15 @@ class Game(object):
         self.log.error("Login failed, Name or password is missing")
         return False
 
-    def create_instance(self, game_obj):
+    def create_instance(self, game_obj, count = 1):
         """Create an instance of a catalog object.
 
         This creates a copy of the object.
         """
-        if game_obj:
-            return copy.deepcopy(game_obj)
+        new_obj = copy.deepcopy(game_obj)
+        if hasattr(game_obj,'count'):
+            new_obj.count = count
+        return new_obj
 
     def join_game(self, ship_name):
         self.log.info("Creating new ship '%s' for user %s..." % (
@@ -249,7 +251,7 @@ class Game(object):
 
         # Create ship
         components = [
-            self.create_instance(Game._components['holds-10']),
+            self.create_instance(Game._components['holds'], count = 10),
         ]
         systems = [
             self.create_instance(Game._systems['computer-1.0']),
