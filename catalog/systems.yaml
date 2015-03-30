@@ -2,4 +2,6 @@ computer-1.0: !System
   id: computer-1.0
   key: computer
   name: Computer
+  provides:
+  - computer
   version: 1.0

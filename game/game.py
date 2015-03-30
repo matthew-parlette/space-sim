@@ -151,6 +151,10 @@ class Game(object):
             ship_location and
             ship_location.__class__.__name__ == 'Sector'
         ) else False
+        flags['has_systems'] = True if (
+            user_location and
+            user_location.systems
+        ) else False
         # Flags are defined
 
         self.log.debug("State flags are %s" % str(flags))
@@ -163,6 +167,13 @@ class Game(object):
             if not flags['joined_game']:
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
+
+            # Determine actions based on systems
+            if flags['has_systems']:
+                for system in user_location.systems:
+                    for provide in system.provides:
+                        if provide in ['computer']:
+                            commands[provide] = {}
 
             if flags['in_ship']:
                 state['user_location'] = user_location.to_dict()
