@@ -14,8 +14,8 @@ class Ship(GameObject):
         cargo = [],
         warp = 1,
         weapons = None,
-        hull = 1,
-        shields = 1,
+        hull = 0,
+        shields = 0,
     ):
         self.name = name
         self.id = id
