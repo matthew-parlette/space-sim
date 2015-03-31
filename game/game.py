@@ -7,7 +7,7 @@ import uuid
 import datetime
 import shutil
 from random import randint, random
-from objects.base import GameObject
+from objects import GameObject
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship

@@ -1,7 +1,7 @@
 import uuid
-from coordinates import Coordinates
 from random import choice
-from sector import SectorObject
+from objects.sector import SectorObject
+from objects.coordinates import Coordinates
 
 class Star(SectorObject):
     yaml_tag = "!Star"

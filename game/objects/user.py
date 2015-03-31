@@ -1,4 +1,4 @@
-from base import GameObject
+from objects import GameObject
 
 class User(GameObject):
     yaml_tag = "!User"

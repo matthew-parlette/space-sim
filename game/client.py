@@ -258,7 +258,7 @@ class Menu(object):
         if 'stations' in state['sector'] and state['sector']['stations']:
             left_screen[5]   = "Stations: "
             left_screen[5]  += " - ".join([station['name'] for station in state['sector']['stations']])
-        if 'stations' in state['sector'] and state['sector']['stations']:
+        if 'ports' in state['sector'] and state['sector']['ports']:
             left_screen[7]   = "Ports: "
             left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
         left_screen[-1]  = "Warps to: "
@@ -267,6 +267,19 @@ class Menu(object):
         right_screen = ["" for x in range(main_display_height)]
         right_screen[1] = "Ship Information"
         right_screen[2] = state['user_location']['name']
+        if 'holds' in state['user_location']:
+            right_screen[3] = "Cargo: %s/%s" % (
+                0,
+                state['user_location']['holds'],
+            )
+        if 'warp' in state['user_location']:
+            right_screen[4] = "Warp Speed: %s" % state['user_location']['warp']
+        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
+            right_screen[5] = "Weapons: %s" % state['user_location']['weapons']
+        if 'hull' in state['user_location']:
+            right_screen[6] = "Hull: %s" % state['user_location']['hull']
+        if 'shields' in state['user_location']:
+            right_screen[7] = "Shields: %s" % state['user_location']['shields']
 
         for i in range(0,main_display_height):
             left = left_screen[i]
