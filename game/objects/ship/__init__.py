@@ -10,10 +10,22 @@ class Ship(GameObject):
         name = None,
         id = str(uuid.uuid4()),
         coordinates = Coordinates(0,0,0),
+        holds = 10,
+        cargo = [],
+        warp = 1,
+        weapons = None,
+        hull = 1,
+        shields = 1,
     ):
         self.name = name
         self.id = id
         self.coordinates = coordinates
+        self.holds = holds
+        self.cargo = cargo
+        self.warp = warp
+        self.weapons = weapons
+        self.hull = hull
+        self.shields = shields
 
         # Parent init should be called at end of __init__
         super(Ship,self).__init__()
