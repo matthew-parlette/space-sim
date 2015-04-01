@@ -2,11 +2,13 @@ import yaml
 import uuid
 from copy import deepcopy
 
-class GameObject(yaml.YAMLObject):
+class Entity(yaml.YAMLObject):
     __metaclass__ = yaml.YAMLObjectMetaclass
 
-    def __init__(self):
-        super(GameObject,self).__init__()
+    def __init__(self, name, id):
+        super(Entity,self).__init__()
+        self.name = name
+        self.id = id
         # Call byteify to make sure all unicode variables are saved as strings
         # This makes it easier to save in yaml
         self.__dict__ = self.byteify(self.__dict__)
@@ -50,7 +52,30 @@ class GameObject(yaml.YAMLObject):
     def to_dict(self):
         return deepcopy(self.__dict__)
 
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        return cls(**fields)
+class GameObject(Entity):
+    yaml_tag = "!GameObject"
+
+    def __init__(
+        self,
+        name = None,
+        id = str(uuid.uuid4()),
+        location = None,
+        holds = 0,
+        cargo = [],
+        warp = 0,
+        weapons = None,
+        hull = 0,
+        shields = 0,
+    ):
+        self.name = name
+        self.id = id
+        self.location = location
+        self.holds = holds
+        self.cargo = cargo
+        self.warp = warp
+        self.weapons = weapons
+        self.hull = hull
+        self.shields = shields
+
+        # Parent init should be called at end of __init__
+        super(GameObject,self).__init__(name = name, id = id)
