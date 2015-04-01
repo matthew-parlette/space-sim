@@ -8,6 +8,7 @@ import datetime
 import shutil
 from random import randint, random
 from objects import GameObject
+from objects.commodity import Ore, Organics, Equipment
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
@@ -56,7 +57,7 @@ class Game(object):
     def shared_objects(self):
         """Return a list of objects that are shared between all Game instances."""
         top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
-            if obj.__name__ not in ['SectorObject','Coordinates']]
+            if obj.__name__ not in ['SectorObject','Coordinates','Commodity']]
         sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
         return top_level + sector_objects
 
