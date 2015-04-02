@@ -1,9 +1,7 @@
-import uuid
 from random import choice, randint
-from objects.sector import SectorObject
-from objects.coordinates import Coordinates
+from objects.manmade import ManMade
 
-class Port(SectorObject):
+class Port(ManMade):
     yaml_tag = "!Port"
 
     def generate_name(self):

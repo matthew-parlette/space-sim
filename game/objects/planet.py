@@ -1,9 +1,7 @@
-import uuid
 from random import choice
-from objects.sector import SectorObject
-from objects.coordinates import Coordinates
+from objects.natural import Natural
 
-class Planet(SectorObject):
+class Planet(Natural):
     yaml_tag = "!Planet"
 
     def generate_name(self):

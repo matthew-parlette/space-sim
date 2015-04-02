@@ -1,7 +1,7 @@
 import uuid
-from objects import GameObject
+from objects import NamedEntity
 
-class Commodity(GameObject):
+class Commodity(NamedEntity):
     yaml_tag = "!Commodity"
 
     def __init__(
@@ -15,7 +15,7 @@ class Commodity(GameObject):
         self.value = value
 
         # Parent init should be called at end of __init__
-        super(Commodity,self).__init__()
+        super(Commodity,self).__init__(name = name, id = id)
 
 class Ore(Commodity):
     def __init__(
