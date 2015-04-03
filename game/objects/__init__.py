@@ -96,6 +96,12 @@ class GameObject(NamedEntity):
         # Parent init should be called at end of __init__
         super(GameObject,self).__init__(name = self.name, id = self.id)
 
+        self.post_init_hook()
+
+    def post_init_hook(self):
+        """Function to be run after __init__()."""
+        pass
+
     def to_dict(self):
         """Override to_dict to handle coordinates."""
         print "running to_dict() for %s" % str(self.__class__.__name__)
