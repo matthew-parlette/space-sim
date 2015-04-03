@@ -82,6 +82,7 @@ class GameObject(NamedEntity):
         weapons = None,
         hull = 0,
         shields = 0,
+        dockable = False,
     ):
         self.name = name if name else self.generate_name()
         self.id = id
