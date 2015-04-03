@@ -13,3 +13,6 @@ class Port(ManMade):
             str(randint(0,9)),
             str(randint(0,9)),
         )
+
+    def post_init_hook(self):
+        self.dockable = True
