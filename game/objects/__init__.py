@@ -93,6 +93,7 @@ class GameObject(NamedEntity):
         self.weapons = weapons
         self.hull = hull
         self.shields = shields
+        self.dockable = dockable
 
         # Parent init should be called at end of __init__
         super(GameObject,self).__init__(name = self.name, id = self.id)
