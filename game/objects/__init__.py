@@ -60,10 +60,10 @@ class NamedEntity(Entity):
 
     That covers mostly everything.
     """
-    def __init__(self, name, id):
+    def __init__(self, name, id = None):
         super(NamedEntity,self).__init__()
         self.name = name
-        self.id = id
+        self.id = id or str(uuid.uuid4())
         # Call byteify to make sure all unicode variables are saved as strings
         # This makes it easier to save in yaml
         self.__dict__ = self.byteify(self.__dict__)
@@ -74,7 +74,7 @@ class GameObject(NamedEntity):
     def __init__(
         self,
         name = None,
-        id = str(uuid.uuid4()),
+        id = None,
         location = None,
         holds = 0,
         cargo = [],
