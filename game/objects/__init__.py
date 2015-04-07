@@ -106,12 +106,10 @@ class GameObject(NamedEntity):
 
     def to_dict(self):
         """Override to_dict to handle coordinates."""
-        print "running to_dict() for %s" % str(self.__class__.__name__)
         result = super(GameObject,self).to_dict()
         if isinstance(self.location,Entity):
             print "Calling to_dict() for location"
             result['location'] = self.location.to_dict()
-        print "returning, type of location is %s" % str(type(result['location']))
         return result
 
     def generate_name(self):
