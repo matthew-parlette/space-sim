@@ -108,7 +108,6 @@ class GameObject(NamedEntity):
         """Override to_dict to handle coordinates."""
         result = super(GameObject,self).to_dict()
         if isinstance(self.location,Entity):
-            print "Calling to_dict() for location"
             result['location'] = self.location.to_dict()
         return result
 

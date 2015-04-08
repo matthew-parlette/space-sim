@@ -115,16 +115,23 @@ class Menu(object):
                             if isinstance(self.commands[command][param],list):
                                 # Possible answers are provided, select one
                                 user_choice = ""
-                                while user_choice not in self.commands[command][param]:
-                                    print "\nEnter to cancel\n%s (%s) > " % (
+                                options_as_dict = {}
+                                for index, value in enumerate(self.commands[command][param]):
+                                    options_as_dict[str(index+1)] = value
+                                self.render_options(options_as_dict, title=param)
+                                while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
+                                    # print "\nEnter to cancel\n%s (%s) > " % (
+                                    #     str(param),
+                                    #     ",".join(self.commands[command][param])
+                                    # ),
+                                    print "\nEnter to cancel\n%s > " % (
                                         str(param),
-                                        ",".join(self.commands[command][param])
                                     ),
                                     user_choice = getch().lower()
                                     if user_choice == '\r':
                                         # Cancelled command, return nothing
                                         return request_state_command
-                                command_to_server[command][param] = user_choice
+                                command_to_server[command][param] = options_as_dict[user_choice]
                             else:
                                 # Possible answers are not provided, assume
                                 # free form text
@@ -133,6 +140,14 @@ class Menu(object):
                 elif isinstance(command, dict):
                     # command is already a dictionary, send it to server
                     command_to_server = command
+                elif isinstance(command, list):
+                    self.log.info("command %s is a list" % str(command))
+                    # command is a list, convert it to a dictionary
+                    # command_dict = {}
+                    # for index, value in enumerate(command):
+                    #     command_dict[str(index)] = value
+                    # selection = self.render
+                    # command_to_server = {command: command_dict[str(selection)]}
                 return command_to_server
             else:
                 # Invalid input, try again
@@ -210,10 +225,20 @@ class Menu(object):
         print "| " + "".ljust(int(width) - 4) + " |"
         for key in command_dict.keys():
             if key not in ['q','?']:
-                print "| (%s)%s |" % (
-                    key.upper(),
-                    command_dict[key][1:].ljust(int(width) - 7),
-                )
+                if key == command_dict[key][:1]:
+                    # Key is the start of the option
+                    # example: Key: R, Value: Ready
+                    print "| (%s)%s |" % (
+                        key.upper(),
+                        command_dict[key][1:].ljust(int(width) - 7),
+                    )
+                else:
+                    # Key is not the start of the option
+                    # example: Key: 1, Value: Ready
+                    print "| (%s) %s |" % (
+                        key.upper(),
+                        command_dict[key].ljust(int(width) - 6),
+                    )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
         self.render_bar()
