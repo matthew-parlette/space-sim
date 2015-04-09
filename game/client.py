@@ -196,6 +196,8 @@ class Menu(object):
                             if 'name' in state['sector'] and 'coordinates' in state['sector']:
                                 # User is in a sector
                                 self.render_sector(state, commands)
+                        elif 'at' in state:
+                            self.render_location(state, commands)
                     else:
                         # User not in game
                         pass
@@ -288,6 +290,54 @@ class Menu(object):
             left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
+
+        right_screen = ["" for x in range(main_display_height)]
+        right_screen[1] = "Ship Information"
+        right_screen[2] = state['user_location']['name']
+        if 'holds' in state['user_location']:
+            right_screen[3] = "Cargo: %s/%s" % (
+                0,
+                state['user_location']['holds'],
+            )
+        if 'warp' in state['user_location']:
+            right_screen[4] = "Warp Speed: %s" % state['user_location']['warp']
+        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
+            right_screen[5] = "Weapons: %s" % state['user_location']['weapons']
+        if 'hull' in state['user_location']:
+            right_screen[6] = "Hull: %s" % state['user_location']['hull']
+        if 'shields' in state['user_location']:
+            right_screen[7] = "Shields: %s" % state['user_location']['shields']
+
+        for i in range(0,main_display_height):
+            left = left_screen[i]
+            right = right_screen[i]
+            self.render_line(
+                "%s| %s" % (
+                    left.ljust(left_section_width),
+                    right,
+                )
+            )
+
+        self.render_bar()
+
+    def render_location(self, state, commands):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        left_section_width = int(int(width) * 0.75)
+        main_display_height = int(height) - 5
+
+        self.render_bar("%s (%s,%s)" % (
+            state['at']['name'],
+            state['at']['location']['x'],
+            state['at']['location']['y'],
+        ))
+
+        left_screen = ["" for x in range(main_display_height)]
+        for index, key in enumerate(commands):
+            left_screen[-(index+1)] = "(%s)%s" % (
+                str(key[:1]),
+                str(key[1:])
+            )
 
         right_screen = ["" for x in range(main_display_height)]
         right_screen[1] = "Ship Information"
