@@ -8,11 +8,13 @@ import datetime
 import shutil
 from random import randint, random
 from objects import GameObject
+from objects.manmade import ManMade
+from objects.natural import Natural
 from objects.commodity import Ore, Organics, Equipment
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
-from objects.sector import Sector, SectorObject
+from objects.sector import Sector
 from objects.star import Star
 from objects.planet import Planet
 from objects.station import Station
@@ -56,10 +58,11 @@ class Game(object):
     @property
     def shared_objects(self):
         """Return a list of objects that are shared between all Game instances."""
-        top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
-            if obj.__name__ not in ['SectorObject','Coordinates','Commodity']]
-        sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
-        return top_level + sector_objects
+        objects = [Sector().plural()]
+        objects += [User().plural()]
+        objects += [globals()[obj.__name__]().plural() for obj in ManMade.__subclasses__()]
+        objects += [globals()[obj.__name__]().plural() for obj in Natural.__subclasses__()]
+        return objects
 
     def save(self):
         self.log.info("Saving shared objects to disk")
@@ -105,7 +108,48 @@ class Game(object):
         if hasattr(of, 'coordinates'):
             if of.coordinates in Game._sectors.keys():
                 return Game._sectors[of.coordinates]
+        if hasattr(of, 'location'):
+            if isinstance(of.location,Coordinates):
+                if of.location in Game._sectors.keys():
+                    return Game._sectors[of.location]
+            if isinstance(of.location,str):
+                # Assume location is uuid, search objects for id
+                return self.find_by_id(of.location)
         return None
+
+    def find_by_id(self, id):
+        """
+        Find an object by its ID
+        """
+        self.log.debug("Searching for object with id %s" % str(id))
+        found_obj = None
+        possible_objects = [globals()[obj.__name__]().plural() for obj in ManMade.__subclasses__()]
+        for shared_obj in possible_objects:
+            self.log.debug("Searching %s for id %s" % (str(shared_obj),str(id)))
+            if found_obj:
+                break
+            for key, value in getattr(Game,'_' + shared_obj,{}).iteritems():
+                objects = []
+                if isinstance(value,list):
+                    objects += value
+                else:
+                    objects.append(value)
+                for obj in objects:
+                    self.log.debug("Processing %s" % str(obj))
+                    self.log.debug("Testing %s (%s) for id %s" % (
+                        str(obj),
+                        str(obj.id),
+                        str(id),
+                    ))
+                    if obj.id == id:
+                        found_obj = obj
+                        break
+
+        if found_obj:
+            self.log.debug("Found object: %s" % str(found_obj))
+        else:
+            self.log.warning("No object found with id %s" % str(id))
+        return found_obj
 
     def state(self):
         """Return the state and commands dictionary for the currently
@@ -136,6 +180,11 @@ class Game(object):
             ship_location and
             ship_location.__class__.__name__ == 'Sector'
         ) else False
+        flags['docked'] = True if (
+            flags['in_ship'] and
+            ship_location and
+            ship_location.__class__.__name__ in ['Port']
+        ) else False
         # Flags are defined
 
         self.log.debug("State flags are %s" % str(flags))
@@ -154,15 +203,24 @@ class Game(object):
 
             if flags['in_sector']:
                 state['sector'] = ship_location.to_dict()
-                state['sector']['coordinates'] = user_location.coordinates.to_dict()
-                contents = self.get_contents(user_location.coordinates)
+                state['sector']['coordinates'] = user_location.location.to_dict()
+                contents = self.get_contents(user_location.location)
                 for obj in contents:
                     heading = globals()[obj.__class__.__name__]().plural()
                     if heading in state['sector']:
                         state['sector'][heading].append(obj.to_dict())
                     else:
                         state['sector'][heading] = [obj.to_dict()]
+                    if obj.dockable:
+                        if 'dock' in commands:
+                            commands['dock']['id'].append(obj.id)
+                        else:
+                            commands['dock'] = {'id': [obj.id]}
                 commands['move'] = {'direction': ['n','s','e','w']}
+
+            if flags['docked']:
+                state['at'] = ship_location.to_dict()
+                commands['undock'] = {}
         else:
             # No user is logged in
             state['user'] = User().to_dict() # Emtpy user
@@ -253,19 +311,24 @@ class Game(object):
             str(sector),
             str(coordinates),
         ))
-        ship.coordinates = coordinates
+        ship.location = coordinates
         return True
 
-    def move(self, cardinal_direction):
+    def move(self, cardinal_direction = None, coordinates = None):
         """
         Move the current player's ship in a cardinal direction (N-S-E-W)
         """
-        if cardinal_direction.lower() in ['n','s','e','w']:
-            ship = self.location(of = self.logged_in_user)
-            ship.coordinates = ship.coordinates.adjacent(cardinal_direction)
+        if cardinal_direction:
+            if cardinal_direction.lower() in ['n','s','e','w']:
+                ship = self.location(of = self.logged_in_user)
+                coordinates = ship.location.adjacent(cardinal_direction)
+
+        if coordinates:
+            ship.location = ship.location.adjacent(cardinal_direction)
 
             # Call self.sector() so the sector is generated, if necessary
-            self.sector(ship.coordinates)
+            self.sector(ship.location)
+
 
     def sector(self, coordinates):
         """
@@ -301,7 +364,7 @@ class Game(object):
                     str(coordinates),
                 ))
                 new_object = globals()[object_name]()
-                new_object.coordinates = coordinates
+                new_object.location = coordinates
                 shared_dict = getattr(Game,'_' + new_object.plural())
                 if coordinates in shared_dict:
                     shared_dict[coordinates].append(new_object)
@@ -333,11 +396,33 @@ class Game(object):
             return []
 
         contents = []
-        for child in SectorObject.__subclasses__():
-            # subclasses returns full path, ex: objects.star.Star
-            # child.__name__ returns Star
-            shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
-            if shared_object and coordinates in shared_object:
-                contents += shared_object[coordinates]
+        # GameObject -> ManMade or Natural -> Object we want here
+        for parent in GameObject.__subclasses__():
+            for child in globals()[parent.__name__].__subclasses__():
+                # subclasses returns full path, ex: objects.star.Star
+                # child.__name__ returns Star
+                shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
+                if shared_object and coordinates in shared_object:
+                    contents += shared_object[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
+
+
+    def enter(self, id):
+        """
+        Move the current player's ship to the object (identified by id).
+        """
+        found_obj = self.find_by_id(id)
+        # Move the ship to it
+        if found_obj:
+            ship = self.location(of = self.logged_in_user)
+            ship.location = found_obj.id
+
+    def leave(self):
+        """
+        Move the current player's ship from wherever they are landed to the sector.
+        """
+        ship = self.location(of = self.logged_in_user)
+        location = self.location(of = ship)
+        if hasattr(location,'location'):
+            ship.location = location.location

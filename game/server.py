@@ -32,6 +32,12 @@ class ServerGameAdapter(object):
     def move(self, parameters):
         return self.game.move(parameters['direction'])
 
+    def dock(self, parameters):
+        return self.game.enter(parameters['id'])
+
+    def undock(self, parameters):
+        return self.game.leave()
+
 def json_repr(obj):
     """Represent instance of a class as JSON.
     Arguments:

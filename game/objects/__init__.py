@@ -1,12 +1,17 @@
 import yaml
 import uuid
 from copy import deepcopy
+from random import randint
 
-class GameObject(yaml.YAMLObject):
+class Entity(yaml.YAMLObject):
+    """The lowest level base object.
+
+    This handles to/from yaml conversion, pluralization, and dict rendering.
+    """
     __metaclass__ = yaml.YAMLObjectMetaclass
 
     def __init__(self):
-        super(GameObject,self).__init__()
+        super(Entity,self).__init__()
         # Call byteify to make sure all unicode variables are saved as strings
         # This makes it easier to save in yaml
         self.__dict__ = self.byteify(self.__dict__)
@@ -50,7 +55,68 @@ class GameObject(yaml.YAMLObject):
     def to_dict(self):
         return deepcopy(self.__dict__)
 
-    @classmethod
-    def from_yaml(cls, loader, node):
-        fields = loader.construct_mapping(node, deep=True)
-        return cls(**fields)
+class NamedEntity(Entity):
+    """The base class for anything in the game that has a name and ID.
+
+    That covers mostly everything.
+    """
+    def __init__(self, name, id = None):
+        super(NamedEntity,self).__init__()
+        self.name = name
+        self.id = id or str(uuid.uuid4())
+        # Call byteify to make sure all unicode variables are saved as strings
+        # This makes it easier to save in yaml
+        self.__dict__ = self.byteify(self.__dict__)
+
+class GameObject(NamedEntity):
+    yaml_tag = "!GameObject"
+
+    def __init__(
+        self,
+        name = None,
+        id = None,
+        location = None,
+        holds = 0,
+        cargo = [],
+        warp = 0,
+        weapons = None,
+        hull = 0,
+        shields = 0,
+        dockable = False,
+    ):
+        self.name = name if name else self.generate_name()
+        self.id = id
+        self.location = location
+        self.holds = holds
+        self.cargo = cargo
+        self.warp = warp
+        self.weapons = weapons
+        self.hull = hull
+        self.shields = shields
+        self.dockable = dockable
+
+        # Parent init should be called at end of __init__
+        super(GameObject,self).__init__(name = self.name, id = self.id)
+
+        self.post_init_hook()
+
+    def post_init_hook(self):
+        """Function to be run after __init__()."""
+        pass
+
+    def to_dict(self):
+        """Override to_dict to handle coordinates."""
+        result = super(GameObject,self).to_dict()
+        if isinstance(self.location,Entity):
+            result['location'] = self.location.to_dict()
+        return result
+
+    def generate_name(self):
+        """
+        Return a randomly generated name for this object.
+        """
+        return "Object %s%s%s" % (
+            str(randint(1,9)),
+            str(randint(0,9)),
+            str(randint(0,9)),
+        )

@@ -115,16 +115,23 @@ class Menu(object):
                             if isinstance(self.commands[command][param],list):
                                 # Possible answers are provided, select one
                                 user_choice = ""
-                                while user_choice not in self.commands[command][param]:
-                                    print "\nEnter to cancel\n%s (%s) > " % (
+                                options_as_dict = {}
+                                for index, value in enumerate(self.commands[command][param]):
+                                    options_as_dict[str(index+1)] = value
+                                self.render_options(options_as_dict, title=param)
+                                while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
+                                    # print "\nEnter to cancel\n%s (%s) > " % (
+                                    #     str(param),
+                                    #     ",".join(self.commands[command][param])
+                                    # ),
+                                    print "\nEnter to cancel\n%s > " % (
                                         str(param),
-                                        ",".join(self.commands[command][param])
                                     ),
                                     user_choice = getch().lower()
                                     if user_choice == '\r':
                                         # Cancelled command, return nothing
                                         return request_state_command
-                                command_to_server[command][param] = user_choice
+                                command_to_server[command][param] = options_as_dict[user_choice]
                             else:
                                 # Possible answers are not provided, assume
                                 # free form text
@@ -133,6 +140,14 @@ class Menu(object):
                 elif isinstance(command, dict):
                     # command is already a dictionary, send it to server
                     command_to_server = command
+                elif isinstance(command, list):
+                    self.log.info("command %s is a list" % str(command))
+                    # command is a list, convert it to a dictionary
+                    # command_dict = {}
+                    # for index, value in enumerate(command):
+                    #     command_dict[str(index)] = value
+                    # selection = self.render
+                    # command_to_server = {command: command_dict[str(selection)]}
                 return command_to_server
             else:
                 # Invalid input, try again
@@ -181,6 +196,8 @@ class Menu(object):
                             if 'name' in state['sector'] and 'coordinates' in state['sector']:
                                 # User is in a sector
                                 self.render_sector(state, commands)
+                        elif 'at' in state:
+                            self.render_location(state, commands)
                     else:
                         # User not in game
                         pass
@@ -210,10 +227,20 @@ class Menu(object):
         print "| " + "".ljust(int(width) - 4) + " |"
         for key in command_dict.keys():
             if key not in ['q','?']:
-                print "| (%s)%s |" % (
-                    key.upper(),
-                    command_dict[key][1:].ljust(int(width) - 7),
-                )
+                if key == command_dict[key][:1]:
+                    # Key is the start of the option
+                    # example: Key: R, Value: Ready
+                    print "| (%s)%s |" % (
+                        key.upper(),
+                        command_dict[key][1:].ljust(int(width) - 7),
+                    )
+                else:
+                    # Key is not the start of the option
+                    # example: Key: 1, Value: Ready
+                    print "| (%s) %s |" % (
+                        key.upper(),
+                        command_dict[key].ljust(int(width) - 8),
+                    )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
         self.render_bar()
@@ -263,6 +290,54 @@ class Menu(object):
             left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
+
+        right_screen = ["" for x in range(main_display_height)]
+        right_screen[1] = "Ship Information"
+        right_screen[2] = state['user_location']['name']
+        if 'holds' in state['user_location']:
+            right_screen[3] = "Cargo: %s/%s" % (
+                0,
+                state['user_location']['holds'],
+            )
+        if 'warp' in state['user_location']:
+            right_screen[4] = "Warp Speed: %s" % state['user_location']['warp']
+        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
+            right_screen[5] = "Weapons: %s" % state['user_location']['weapons']
+        if 'hull' in state['user_location']:
+            right_screen[6] = "Hull: %s" % state['user_location']['hull']
+        if 'shields' in state['user_location']:
+            right_screen[7] = "Shields: %s" % state['user_location']['shields']
+
+        for i in range(0,main_display_height):
+            left = left_screen[i]
+            right = right_screen[i]
+            self.render_line(
+                "%s| %s" % (
+                    left.ljust(left_section_width),
+                    right,
+                )
+            )
+
+        self.render_bar()
+
+    def render_location(self, state, commands):
+        # Get the console dimensions
+        height, width = os.popen('stty size', 'r').read().split()
+        left_section_width = int(int(width) * 0.75)
+        main_display_height = int(height) - 5
+
+        self.render_bar("%s (%s,%s)" % (
+            state['at']['name'],
+            state['at']['location']['x'],
+            state['at']['location']['y'],
+        ))
+
+        left_screen = ["" for x in range(main_display_height)]
+        for index, key in enumerate(commands):
+            left_screen[-(index+1)] = "(%s)%s" % (
+                str(key[:1]),
+                str(key[1:])
+            )
 
         right_screen = ["" for x in range(main_display_height)]
         right_screen[1] = "Ship Information"

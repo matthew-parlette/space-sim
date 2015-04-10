@@ -1,9 +1,7 @@
-import uuid
 from random import choice, randint
-from objects.sector import SectorObject
-from objects.coordinates import Coordinates
+from objects.manmade import ManMade
 
-class Port(SectorObject):
+class Port(ManMade):
     yaml_tag = "!Port"
 
     def generate_name(self):
@@ -15,3 +13,6 @@ class Port(SectorObject):
             str(randint(0,9)),
             str(randint(0,9)),
         )
+
+    def post_init_hook(self):
+        self.dockable = True
