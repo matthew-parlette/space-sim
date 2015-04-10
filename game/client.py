@@ -239,7 +239,7 @@ class Menu(object):
                     # example: Key: 1, Value: Ready
                     print "| (%s) %s |" % (
                         key.upper(),
-                        command_dict[key].ljust(int(width) - 6),
+                        command_dict[key].ljust(int(width) - 8),
                     )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
