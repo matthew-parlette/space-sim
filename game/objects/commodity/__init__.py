@@ -7,12 +7,14 @@ class Commodity(NamedEntity):
     def __init__(
         self,
         name = None,
-        id = str(uuid.uuid4()),
+        id = None,
         value = 0,
+        count = 0,
     ):
         self.name = name
-        self.id = id
+        self.id = id or str(uuid.uuid4())
         self.value = value
+        self.count = count
 
         # Parent init should be called at end of __init__
         super(Commodity,self).__init__(name = name, id = id)
