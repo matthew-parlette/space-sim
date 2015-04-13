@@ -333,6 +333,14 @@ class Menu(object):
         ))
 
         left_screen = ["" for x in range(main_display_height)]
+        line = 1
+        if 'cargo' in state['at'] and state['at']['cargo']:
+            for item in state['at']['cargo']:
+                left_screen[line] = "%s (%s)" % (
+                    str(item['name']),
+                    str(item['count'])
+                )
+                line += 1
         for index, key in enumerate(commands):
             left_screen[-(index+1)] = "(%s)%s" % (
                 str(key[:1]),

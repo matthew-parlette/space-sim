@@ -105,10 +105,12 @@ class GameObject(NamedEntity):
         pass
 
     def to_dict(self):
-        """Override to_dict to handle coordinates."""
+        """Override to_dict to handle subobjects."""
         result = super(GameObject,self).to_dict()
         if isinstance(self.location,Entity):
             result['location'] = self.location.to_dict()
+        if self.cargo:
+            result['cargo'] = [c.to_dict() for c in self.cargo]
         return result
 
     def generate_name(self):

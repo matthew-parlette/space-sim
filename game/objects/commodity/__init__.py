@@ -19,32 +19,23 @@ class Commodity(NamedEntity):
         # Parent init should be called at end of __init__
         super(Commodity,self).__init__(name = name, id = id)
 
+        self.post_init_hook()
+
+    def post_init_hook(self):
+        """Function to be run after __init__()."""
+        pass
+
 class Ore(Commodity):
-    def __init__(
-        self,
-    ):
-        super(Ore,self).__init__(
-            name = "Fuel Ore",
-            id = "ore",
-            value = 10,
-        )
+    def post_init_hook(self):
+        self.name = "Fuel Ore"
+        self.id = "ore"
 
 class Organics(Commodity):
-    def __init__(
-        self,
-    ):
-        super(Organics,self).__init__(
-            name = "Organics",
-            id = "organics",
-            value = 20,
-        )
+    def post_init_hook(self):
+        self.name = "Organics"
+        self.id = "organics"
 
 class Equipment(Commodity):
-    def __init__(
-        self,
-    ):
-        super(Equipment,self).__init__(
-            name = "Equipment",
-            id = "equipment",
-            value = 30,
-        )
+    def post_init_hook(self):
+        self.name = "Equipment"
+        self.id = "equipment"
