@@ -16,7 +16,8 @@ class User(NamedEntity):
         password = None,
         token = None,
         status = 'new',
-        location_id = None
+        location_id = None,
+        credits = 0,
     ):
         self.name = name
         self.id = id
@@ -24,6 +25,7 @@ class User(NamedEntity):
         self.token = token
         self.status = status
         self.location_id = location_id
+        self.credits = 0
 
         # Parent init should be called at end of __init__
         super(User,self).__init__(name, id)

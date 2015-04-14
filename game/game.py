@@ -292,6 +292,9 @@ class Game(object):
         # Mark player as not-new
         self.logged_in_user.status = 'alive'
 
+        # Start player with 1000 credits
+        self.logged_in_user.credits = 1000
+
         # Spawn the ship
         self.spawn(ship)
 
@@ -328,7 +331,6 @@ class Game(object):
 
             # Call self.sector() so the sector is generated, if necessary
             self.sector(ship.location)
-
 
     def sector(self, coordinates):
         """
@@ -406,7 +408,6 @@ class Game(object):
                     contents += shared_object[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
-
 
     def enter(self, id):
         """
