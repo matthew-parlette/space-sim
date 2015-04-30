@@ -10,7 +10,7 @@ from random import randint, random
 from objects import GameObject
 from objects.manmade import ManMade
 from objects.natural import Natural
-from objects.commodity import Ore, Organics, Equipment
+from objects.commodity import Commodity, Ore, Organics, Equipment
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
@@ -221,6 +221,10 @@ class Game(object):
             if flags['docked']:
                 state['at'] = ship_location.to_dict()
                 commands['undock'] = {}
+                commands['buy'] = {
+                    'item': [c.id for c in ship_location.cargo],
+                    'quantity': None,
+                }
         else:
             # No user is logged in
             state['user'] = User().to_dict() # Emtpy user
@@ -427,3 +431,51 @@ class Game(object):
         location = self.location(of = ship)
         if hasattr(location,'location'):
             ship.location = location.location
+
+    def trade(self, item, quantity, for_what = None, seller = None, buyer = None):
+        """
+        Move an item from the seller to the buyer for another item (usually credits).
+        """
+        # Determine seller and buyer
+        if buyer is None:
+            # Assume buyer is the current player
+            buyer = self.logged_in_user
+        if seller is None:
+            # Determine seller from buyer's location
+            seller = self.location(of = self.location(of = buyer))
+        self.log.debug("Initiating trade from %s to %s for %s of %s..." % (
+            str(seller.name),
+            str(buyer.name),
+            str(quantity),
+            str(item),
+        ))
+        if isinstance(item, str) or isinstance(item, unicode):
+            # Assuming item was passed as a commodity id
+            if str(item) in [c.id for c in seller.cargo]:
+                # Seller has the item
+                (item_obj,) = [c for c in seller.cargo if c.id == str(item)]
+                if item_obj.count >= int(quantity):
+                    # Seller has enough of the item
+                    self._move_item(seller, self.location(of = buyer), item_obj, quantity)
+
+    def _move_item(self, from_location, to_location, item, quantity):
+        """
+        Move an item from one place to another without exchanging credits.
+        """
+        if isinstance(item, Commodity):
+            if item.count >= int(quantity):
+                # Remove item from from_location
+                item.count -= int(quantity)
+                # Add item to to_location
+                if item.id in [i.id for i in to_location.cargo]:
+                    # Item already exists on to_location
+                    (to_item,) = [i for i in to_location.cargo if i.id == item.id]
+                    to_item += int(quantity)
+                else:
+                    # Item needs to be created on to_location
+                    self.log.debug("%s does not have a %s object, creating one" % (
+                        str(to_location.name),
+                        str(item.__class__.__name__),
+                    ))
+                    to_item = globals()[item.__class__.__name__](count = int(quantity))
+                    to_location.cargo.append(to_item)
