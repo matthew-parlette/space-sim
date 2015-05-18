@@ -489,7 +489,7 @@ class Game(object):
                 if item.id in [i.id for i in to_location.cargo]:
                     # Item already exists on to_location
                     (to_item,) = [i for i in to_location.cargo if i.id == item.id]
-                    to_item += int(quantity)
+                    to_item.count += int(quantity)
                 else:
                     # Item needs to be created on to_location
                     self.log.debug("%s does not have a %s object, creating one" % (
