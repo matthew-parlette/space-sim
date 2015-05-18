@@ -432,23 +432,42 @@ class Game(object):
         if hasattr(location,'location'):
             ship.location = location.location
 
-    def trade(self, item, quantity, for_what = None, seller = None, buyer = None):
+    def trade(self, item, quantity = 0, for_what = None, seller = None, buyer = None):
         """
         Move an item from the seller to the buyer for another item (usually credits).
         """
         # Determine seller and buyer
-        if buyer is None:
-            # Assume buyer is the current player
+        if buyer is 'current_user':
             buyer = self.logged_in_user
-        if seller is None:
-            # Determine seller from buyer's location
             seller = self.location(of = self.location(of = buyer))
+        if seller is 'current_user':
+            seller = self.logged_in_user
+            buyer = self.location(of = self.location(of = seller))
+        if buyer is None:
+            self.log.error("trade() could not determine the buyer, aborting trade...")
+            return
+        if seller is None:
+            self.log.error("trade() could not determine the seller, aborting trade...")
+            return
+
+        # Make sure the quantity is valid
+        try:
+            quantity = int(quantity)
+        except:
+            self.log.error("trade() called with a non-integer quantity, aborting trade...")
+            return
+        if quantity == 0:
+            self.log.error("trade() called with a quantity of 0, aborting trade...")
+            return
+
         self.log.debug("Initiating trade from %s to %s for %s of %s..." % (
             str(seller.name),
             str(buyer.name),
             str(quantity),
             str(item),
         ))
+
+        # Trade parameters are valid, proceed with trade
         if isinstance(item, str) or isinstance(item, unicode):
             # Assuming item was passed as a commodity id
             if str(item) in [c.id for c in seller.cargo]:

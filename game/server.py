@@ -46,7 +46,7 @@ class ServerGameAdapter(object):
             quantity = parameters['quantity'],
             for_what = None,
             seller = None,
-            buyer = None,
+            buyer = 'current_user',
         )
 
 def json_repr(obj):
