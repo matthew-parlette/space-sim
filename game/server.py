@@ -39,14 +39,21 @@ class ServerGameAdapter(object):
         return self.game.leave()
 
     def buy(self, parameters):
-        log.debug("in buy(), parameters: %s" % str(parameters))
-        log.debug("in buy(), trade item is %s" % parameters['item'])
         return self.game.trade(
             item = parameters['item'],
             quantity = parameters['quantity'],
             for_what = None,
             seller = None,
             buyer = 'current_user',
+        )
+
+    def sell(self, parameters):
+        return self.game.trade(
+            item = parameters['item'],
+            quantity = parameters['quantity'],
+            for_what = None,
+            seller = 'current_user',
+            buyer = None,
         )
 
 def json_repr(obj):

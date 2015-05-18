@@ -225,6 +225,10 @@ class Game(object):
                     'item': [c.id for c in ship_location.cargo],
                     'quantity': None,
                 }
+                commands['sell'] = {
+                    'item': [c.id for c in user_location.cargo],
+                    'quantity': None,
+                }
         else:
             # No user is logged in
             state['user'] = User().to_dict() # Emtpy user
@@ -438,11 +442,17 @@ class Game(object):
         """
         # Determine seller and buyer
         if buyer is 'current_user':
-            buyer = self.logged_in_user
-            seller = self.location(of = self.location(of = buyer))
+            if hasattr(self.logged_in_user, 'cargo'):
+                buyer = self.logged_in_user
+            else:
+                buyer = self.location(of = self.logged_in_user)
+            seller = self.location(of = buyer)
         if seller is 'current_user':
-            seller = self.logged_in_user
-            buyer = self.location(of = self.location(of = seller))
+            if hasattr(self.logged_in_user, 'cargo'):
+                seller = self.logged_in_user
+            else:
+                seller = self.location(of = self.logged_in_user)
+            buyer = self.location(of = seller)
         if buyer is None:
             self.log.error("trade() could not determine the buyer, aborting trade...")
             return
@@ -475,12 +485,18 @@ class Game(object):
                 (item_obj,) = [c for c in seller.cargo if c.id == str(item)]
                 if item_obj.count >= int(quantity):
                     # Seller has enough of the item
-                    self._move_item(seller, self.location(of = buyer), item_obj, quantity)
+                    self._move_item(seller, buyer, item_obj, quantity)
 
     def _move_item(self, from_location, to_location, item, quantity):
         """
         Move an item from one place to another without exchanging credits.
         """
+        self.log.debug("Moving item %s (quantity %s) from %s to %s" % (
+            str(item.name),
+            str(quantity),
+            str(from_location.name),
+            str(to_location.name),
+        ))
         if isinstance(item, Commodity):
             if item.count >= int(quantity):
                 # Remove item from from_location
