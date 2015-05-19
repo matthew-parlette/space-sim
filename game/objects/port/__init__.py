@@ -17,6 +17,7 @@ class Port(ManMade):
 
     def post_init_hook(self):
         self.dockable = True
+        self.business = True
 
         # If cargo is empty, then populate with some commodities
         if not self.cargo:
