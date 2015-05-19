@@ -83,7 +83,7 @@ class GameObject(NamedEntity):
         hull = 0,
         shields = 0,
         dockable = False,
-        business = False,
+        is_business = False,
     ):
         self.name = name if name else self.generate_name()
         self.id = id
@@ -95,7 +95,7 @@ class GameObject(NamedEntity):
         self.hull = hull
         self.shields = shields
         self.dockable = dockable
-        self.business = business
+        self.is_business = is_business
 
         # Parent init should be called at end of __init__
         super(GameObject,self).__init__(name = self.name, id = self.id)
