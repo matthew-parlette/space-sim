@@ -29,13 +29,16 @@ class Ore(Commodity):
     def post_init_hook(self):
         self.name = "Fuel Ore"
         self.id = "ore"
+        self.value = 10
 
 class Organics(Commodity):
     def post_init_hook(self):
         self.name = "Organics"
         self.id = "organics"
+        self.value = 20
 
 class Equipment(Commodity):
     def post_init_hook(self):
         self.name = "Equipment"
         self.id = "equipment"
+        self.value = 30
