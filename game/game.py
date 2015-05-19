@@ -436,23 +436,36 @@ class Game(object):
         if hasattr(location,'location'):
             ship.location = location.location
 
-    def trade(self, item, quantity = 0, for_what = None, seller = None, buyer = None):
+    def trade(
+        self,
+        item,
+        quantity = 0,
+        for_what = None,
+        seller = None,
+        seller_cargo_location = None,
+        buyer = None,
+        buyer_cargo_location = None,
+    ):
         """
         Move an item from the seller to the buyer for another item (usually credits).
         """
-        # Determine seller and buyer
+        # Determine seller and buyer, as well as the location of their cargo
         if buyer is 'current_user':
+            buyer = self.logged_in_user
             if hasattr(self.logged_in_user, 'cargo'):
-                buyer = self.logged_in_user
+                buyer_cargo_location = self.logged_in_user
             else:
-                buyer = self.location(of = self.logged_in_user)
-            seller = self.location(of = buyer)
+                buyer_cargo_location = buyer_cargo_location or self.location(of = buyer)
+            seller = self.location(of = self.location(of = buyer))
+            seller_cargo_location = seller_cargo_location or seller
         if seller is 'current_user':
+            seller = self.logged_in_user
             if hasattr(self.logged_in_user, 'cargo'):
-                seller = self.logged_in_user
+                seller_cargo_location = self.logged_in_user
             else:
-                seller = self.location(of = self.logged_in_user)
-            buyer = self.location(of = seller)
+                seller_cargo_location = seller_cargo_location or self.location(of = seller)
+            buyer = self.location(of = self.location(of = seller))
+            buyer_cargo_location = buyer_cargo_location or buyer
         if buyer is None:
             self.log.error("trade() could not determine the buyer, aborting trade...")
             return
@@ -470,22 +483,36 @@ class Game(object):
             self.log.error("trade() called with a quantity of 0, aborting trade...")
             return
 
-        self.log.debug("Initiating trade from %s to %s for %s of %s..." % (
+        self.log.debug("Initiating trade from %s (cargo to %s) to %s (cargo to %s) for %s of %s..." % (
             str(seller.name),
+            str(seller_cargo_location.name),
             str(buyer.name),
+            str(buyer_cargo_location.name),
             str(quantity),
             str(item),
         ))
 
+        # Determine cost of the item
+        cost = -1
+        if for_what:
+            try:
+                cost = int(for_what)
+            except:
+                self.log.error("trade() called with a non-integer cost, aborting trade...")
+                return
+        else:
+            cost = (seller.get_price(item) if seller.is_business else buyer.get_price(item)) * quantity
+
         # Trade parameters are valid, proceed with trade
         if isinstance(item, str) or isinstance(item, unicode):
             # Assuming item was passed as a commodity id
-            if str(item) in [c.id for c in seller.cargo]:
+            if str(item) in [c.id for c in seller_cargo_location.cargo]:
                 # Seller has the item
-                (item_obj,) = [c for c in seller.cargo if c.id == str(item)]
+                (item_obj,) = [c for c in seller_cargo_location.cargo if c.id == str(item)]
                 if item_obj.count >= int(quantity):
-                    # Seller has enough of the item
-                    self._move_item(seller, buyer, item_obj, quantity)
+                    # Seller has enough of the item, move the item and transfer credits
+                    self._transfer_credits(buyer, seller, cost)
+                    self._move_item(seller_cargo_location, buyer_cargo_location, item_obj, quantity)
 
     def _move_item(self, from_location, to_location, item, quantity):
         """
@@ -514,3 +541,22 @@ class Game(object):
                     ))
                     to_item = globals()[item.__class__.__name__](count = int(quantity))
                     to_location.cargo.append(to_item)
+
+    def _transfer_credits(self, from_obj, to_obj, amount):
+        """
+        Transfer a number of credits (amount) from from_obj to to_obj
+        """
+        if from_obj.credits >= amount:
+            self.log.debug("Transferring %s credits from %s to %s" % (
+                str(amount),
+                str(from_obj.name),
+                str(to_obj.name),
+            ))
+            from_obj.credits -= amount
+            to_obj.credits += amount
+        else:
+            self.log.error("_transfer_credits() called but from_obj (%s) doesn't have enough credits (%s < %s)" % (
+                str(from_obj.name),
+                str(from_obj.credits),
+                str(amount),
+            ))

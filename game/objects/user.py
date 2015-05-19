@@ -18,6 +18,7 @@ class User(NamedEntity):
         status = 'new',
         location_id = None,
         credits = 0,
+        is_business = False,
     ):
         self.name = name
         self.id = id
@@ -26,6 +27,7 @@ class User(NamedEntity):
         self.status = status
         self.location_id = location_id
         self.credits = 0
+        self.is_business = is_business
 
         # Parent init should be called at end of __init__
         super(User,self).__init__(name, id)

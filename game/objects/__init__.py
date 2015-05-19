@@ -82,6 +82,7 @@ class GameObject(NamedEntity):
         weapons = None,
         hull = 0,
         shields = 0,
+        credits = 0,
         dockable = False,
         is_business = False,
     ):
@@ -94,6 +95,7 @@ class GameObject(NamedEntity):
         self.weapons = weapons
         self.hull = hull
         self.shields = shields
+        self.credits = credits
         self.dockable = dockable
         self.is_business = is_business
 
@@ -124,3 +126,7 @@ class GameObject(NamedEntity):
             str(randint(0,9)),
             str(randint(0,9)),
         )
+
+    def get_price(self, item_id):
+        (item,) = [i for i in self.cargo if i.id == item_id]
+        return item.value
