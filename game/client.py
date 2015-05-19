@@ -343,9 +343,10 @@ class Menu(object):
         # Show the cargo at this location
         if 'cargo' in state['at'] and state['at']['cargo']:
             for item in state['at']['cargo']:
-                left_screen[line] = "%s (%s)" % (
+                left_screen[line] = "%s (%s) ($%s per unit)" % (
                     str(item['name']),
-                    str(item['count'])
+                    str(item['count']),
+                    str(item['cost']),
                 )
                 line += 1
         # Show the available commands

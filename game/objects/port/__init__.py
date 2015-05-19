@@ -21,6 +21,7 @@ class Port(ManMade):
 
         # If cargo is empty, then populate with some commodities
         if not self.cargo:
+            self.holds = 100
             self.cargo.append(commodity.Ore(count=10))
             self.cargo.append(commodity.Organics(count=10))
             self.cargo.append(commodity.Equipment(count=10))

@@ -136,8 +136,8 @@ class Game(object):
                     objects.append(value)
                 for obj in objects:
                     self.log.debug("Processing %s" % str(obj))
-                    self.log.debug("Testing %s (%s) for id %s" % (
-                        str(obj),
+                    self.log.debug("Testing %s (id: %s) for id %s" % (
+                        str(obj.name),
                         str(obj.id),
                         str(id),
                     ))
@@ -146,7 +146,7 @@ class Game(object):
                         break
 
         if found_obj:
-            self.log.debug("Found object: %s" % str(found_obj))
+            self.log.debug("Found object of type %s: %s" % (str(found_obj.__class__.__name__),str(found_obj)))
         else:
             self.log.warning("No object found with id %s" % str(id))
         return found_obj
@@ -191,6 +191,7 @@ class Game(object):
         state = {} # Initialize
         commands = {} # Initialize
 
+        self.log.debug("Processing state flag 'logged_in'...")
         if flags['logged_in']:
             # Return __dict__ for json
             state['user'] = self.logged_in_user.to_dict()
@@ -198,9 +199,11 @@ class Game(object):
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
 
+            self.log.debug("Processing state flag 'in_ship'...")
             if flags['in_ship']:
                 state['user_location'] = user_location.to_dict()
 
+            self.log.debug("Processing state flag 'in_sector'...")
             if flags['in_sector']:
                 state['sector'] = ship_location.to_dict()
                 state['sector']['coordinates'] = user_location.location.to_dict()
@@ -218,6 +221,7 @@ class Game(object):
                             commands['dock'] = {'id': [obj.id]}
                 commands['move'] = {'direction': ['n','s','e','w']}
 
+            self.log.debug("Processing state flag 'docked'...")
             if flags['docked']:
                 state['at'] = ship_location.to_dict()
                 commands['undock'] = {}
@@ -292,6 +296,7 @@ class Game(object):
 
         # Create ship
         ship = Ship(name = ship_name)
+        ship.holds = 100
         Game._ships[ship.id] = ship
 
         # Put player in ship
