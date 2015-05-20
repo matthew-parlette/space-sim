@@ -506,7 +506,7 @@ class Game(object):
                 self.log.error("trade() called with a non-integer cost, aborting trade...")
                 return
         else:
-            cost = (seller.get_price(item) if seller.is_business else buyer.get_price(item)) * quantity
+            cost = (seller.get_price(item)['selling'] if seller.is_business else buyer.get_price(item)['buying']) * quantity
 
         # Trade parameters are valid, proceed with trade
         if isinstance(item, str) or isinstance(item, unicode):

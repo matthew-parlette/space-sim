@@ -117,7 +117,7 @@ class GameObject(NamedEntity):
             result['cargo'] = []
             for item in self.cargo:
                 item_dict = item.to_dict()
-                
+
                 # Only determine price for businesses
                 if self.is_business:
                     item_dict['cost'] = self.get_price(item.id)
@@ -138,6 +138,8 @@ class GameObject(NamedEntity):
         """
         Return a price for a given item (in the cargo of this object).
 
+        The price returned is a dictionary with 'buying' and 'selling' costs with respect to this object.
+
         Price is determined by the equation y=mx + b, where m is the slope and b is the y-intercept.
 
         x is the percentage of the total cargo capacity taken up by the item (between 0 and 1)
@@ -154,4 +156,7 @@ class GameObject(NamedEntity):
         b = point1[1] - (m * point1[0])
         print "self: %s, m: %s, b: %s" % (str(self),str(m),str(b))
         x = float(item.count) / float(self.holds)
-        return item.value * (1 - ((m * x) + b))
+        return {
+            'selling': item.value * (1 - ((m * x) + b)),
+            'buying': item.value * (1 + ((m * x) + b)),
+        }
