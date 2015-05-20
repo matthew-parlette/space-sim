@@ -22,6 +22,14 @@ class Port(ManMade):
         # If cargo is empty, then populate with some commodities
         if not self.cargo:
             self.holds = 100
-            self.cargo.append(commodity.Ore(count=10))
-            self.cargo.append(commodity.Organics(count=10))
-            self.cargo.append(commodity.Equipment(count=10))
+            # How many holds should be filled at this port?
+            holds_to_fill = randint(int(self.holds * 0.2),self.holds)
+            ore = holds_to_fill - randint(0,holds_to_fill)
+            holds_to_fill -= ore
+            self.cargo.append(commodity.Ore(count=ore))
+            org = holds_to_fill - randint(0,holds_to_fill)
+            holds_to_fill -= org
+            self.cargo.append(commodity.Organics(count=org))
+            equ = holds_to_fill - randint(0,holds_to_fill)
+            holds_to_fill -= equ
+            self.cargo.append(commodity.Equipment(count=equ))
