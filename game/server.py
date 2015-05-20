@@ -32,6 +32,30 @@ class ServerGameAdapter(object):
     def move(self, parameters):
         return self.game.move(parameters['direction'])
 
+    def dock(self, parameters):
+        return self.game.enter(parameters['id'])
+
+    def undock(self, parameters):
+        return self.game.leave()
+
+    def buy(self, parameters):
+        return self.game.trade(
+            item = parameters['item'],
+            quantity = parameters['quantity'],
+            for_what = None,
+            seller = None,
+            buyer = 'current_user',
+        )
+
+    def sell(self, parameters):
+        return self.game.trade(
+            item = parameters['item'],
+            quantity = parameters['quantity'],
+            for_what = None,
+            seller = 'current_user',
+            buyer = None,
+        )
+
 def json_repr(obj):
     """Represent instance of a class as JSON.
     Arguments:

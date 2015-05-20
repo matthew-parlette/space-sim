@@ -8,10 +8,13 @@ import datetime
 import shutil
 from random import randint, random
 from objects import GameObject
+from objects.manmade import ManMade
+from objects.natural import Natural
+from objects.commodity import Commodity, Ore, Organics, Equipment
 from objects.coordinates import Coordinates
 from objects.user import User
 from objects.ship import Ship
-from objects.sector import Sector, SectorObject
+from objects.sector import Sector
 from objects.star import Star
 from objects.planet import Planet
 from objects.station import Station
@@ -55,10 +58,11 @@ class Game(object):
     @property
     def shared_objects(self):
         """Return a list of objects that are shared between all Game instances."""
-        top_level = [globals()[obj.__name__]().plural() for obj in GameObject.__subclasses__() \
-            if obj.__name__ not in ['SectorObject','Coordinates']]
-        sector_objects = [globals()[obj.__name__]().plural() for obj in SectorObject.__subclasses__()]
-        return top_level + sector_objects
+        objects = [Sector().plural()]
+        objects += [User().plural()]
+        objects += [globals()[obj.__name__]().plural() for obj in ManMade.__subclasses__()]
+        objects += [globals()[obj.__name__]().plural() for obj in Natural.__subclasses__()]
+        return objects
 
     def save(self):
         self.log.info("Saving shared objects to disk")
@@ -104,7 +108,48 @@ class Game(object):
         if hasattr(of, 'coordinates'):
             if of.coordinates in Game._sectors.keys():
                 return Game._sectors[of.coordinates]
+        if hasattr(of, 'location'):
+            if isinstance(of.location,Coordinates):
+                if of.location in Game._sectors.keys():
+                    return Game._sectors[of.location]
+            if isinstance(of.location,str):
+                # Assume location is uuid, search objects for id
+                return self.find_by_id(of.location)
         return None
+
+    def find_by_id(self, id):
+        """
+        Find an object by its ID
+        """
+        self.log.debug("Searching for object with id %s" % str(id))
+        found_obj = None
+        possible_objects = [globals()[obj.__name__]().plural() for obj in ManMade.__subclasses__()]
+        for shared_obj in possible_objects:
+            self.log.debug("Searching %s for id %s" % (str(shared_obj),str(id)))
+            if found_obj:
+                break
+            for key, value in getattr(Game,'_' + shared_obj,{}).iteritems():
+                objects = []
+                if isinstance(value,list):
+                    objects += value
+                else:
+                    objects.append(value)
+                for obj in objects:
+                    self.log.debug("Processing %s" % str(obj))
+                    self.log.debug("Testing %s (id: %s) for id %s" % (
+                        str(obj.name),
+                        str(obj.id),
+                        str(id),
+                    ))
+                    if obj.id == id:
+                        found_obj = obj
+                        break
+
+        if found_obj:
+            self.log.debug("Found object of type %s: %s" % (str(found_obj.__class__.__name__),str(found_obj)))
+        else:
+            self.log.warning("No object found with id %s" % str(id))
+        return found_obj
 
     def state(self):
         """Return the state and commands dictionary for the currently
@@ -135,12 +180,18 @@ class Game(object):
             ship_location and
             ship_location.__class__.__name__ == 'Sector'
         ) else False
+        flags['docked'] = True if (
+            flags['in_ship'] and
+            ship_location and
+            ship_location.__class__.__name__ in ['Port']
+        ) else False
         # Flags are defined
 
         self.log.debug("State flags are %s" % str(flags))
         state = {} # Initialize
         commands = {} # Initialize
 
+        self.log.debug("Processing state flag 'logged_in'...")
         if flags['logged_in']:
             # Return __dict__ for json
             state['user'] = self.logged_in_user.to_dict()
@@ -148,20 +199,40 @@ class Game(object):
                 # New user needs to join the game
                 commands['join_game'] = {'ship_name': None}
 
+            self.log.debug("Processing state flag 'in_ship'...")
             if flags['in_ship']:
                 state['user_location'] = user_location.to_dict()
 
+            self.log.debug("Processing state flag 'in_sector'...")
             if flags['in_sector']:
                 state['sector'] = ship_location.to_dict()
-                state['sector']['coordinates'] = user_location.coordinates.to_dict()
-                contents = self.get_contents(user_location.coordinates)
+                state['sector']['coordinates'] = user_location.location.to_dict()
+                contents = self.get_contents(user_location.location)
                 for obj in contents:
                     heading = globals()[obj.__class__.__name__]().plural()
                     if heading in state['sector']:
                         state['sector'][heading].append(obj.to_dict())
                     else:
                         state['sector'][heading] = [obj.to_dict()]
+                    if obj.dockable:
+                        if 'dock' in commands:
+                            commands['dock']['id'].append(obj.id)
+                        else:
+                            commands['dock'] = {'id': [obj.id]}
                 commands['move'] = {'direction': ['n','s','e','w']}
+
+            self.log.debug("Processing state flag 'docked'...")
+            if flags['docked']:
+                state['at'] = ship_location.to_dict()
+                commands['undock'] = {}
+                commands['buy'] = {
+                    'item': [c.id for c in ship_location.cargo],
+                    'quantity': None,
+                }
+                commands['sell'] = {
+                    'item': [c.id for c in user_location.cargo],
+                    'quantity': None,
+                }
         else:
             # No user is logged in
             state['user'] = User().to_dict() # Emtpy user
@@ -225,6 +296,7 @@ class Game(object):
 
         # Create ship
         ship = Ship(name = ship_name)
+        ship.holds = 100
         Game._ships[ship.id] = ship
 
         # Put player in ship
@@ -232,6 +304,9 @@ class Game(object):
 
         # Mark player as not-new
         self.logged_in_user.status = 'alive'
+
+        # Start player with 1000 credits
+        self.logged_in_user.credits = 1000
 
         # Spawn the ship
         self.spawn(ship)
@@ -252,19 +327,23 @@ class Game(object):
             str(sector),
             str(coordinates),
         ))
-        ship.coordinates = coordinates
+        ship.location = coordinates
         return True
 
-    def move(self, cardinal_direction):
+    def move(self, cardinal_direction = None, coordinates = None):
         """
         Move the current player's ship in a cardinal direction (N-S-E-W)
         """
-        if cardinal_direction.lower() in ['n','s','e','w']:
-            ship = self.location(of = self.logged_in_user)
-            ship.coordinates = ship.coordinates.adjacent(cardinal_direction)
+        if cardinal_direction:
+            if cardinal_direction.lower() in ['n','s','e','w']:
+                ship = self.location(of = self.logged_in_user)
+                coordinates = ship.location.adjacent(cardinal_direction)
+
+        if coordinates:
+            ship.location = ship.location.adjacent(cardinal_direction)
 
             # Call self.sector() so the sector is generated, if necessary
-            self.sector(ship.coordinates)
+            self.sector(ship.location)
 
     def sector(self, coordinates):
         """
@@ -300,7 +379,7 @@ class Game(object):
                     str(coordinates),
                 ))
                 new_object = globals()[object_name]()
-                new_object.coordinates = coordinates
+                new_object.location = coordinates
                 shared_dict = getattr(Game,'_' + new_object.plural())
                 if coordinates in shared_dict:
                     shared_dict[coordinates].append(new_object)
@@ -332,11 +411,157 @@ class Game(object):
             return []
 
         contents = []
-        for child in SectorObject.__subclasses__():
-            # subclasses returns full path, ex: objects.star.Star
-            # child.__name__ returns Star
-            shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
-            if shared_object and coordinates in shared_object:
-                contents += shared_object[coordinates]
+        # GameObject -> ManMade or Natural -> Object we want here
+        for parent in GameObject.__subclasses__():
+            for child in globals()[parent.__name__].__subclasses__():
+                # subclasses returns full path, ex: objects.star.Star
+                # child.__name__ returns Star
+                shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
+                if shared_object and coordinates in shared_object:
+                    contents += shared_object[coordinates]
         self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
         return contents
+
+    def enter(self, id):
+        """
+        Move the current player's ship to the object (identified by id).
+        """
+        found_obj = self.find_by_id(id)
+        # Move the ship to it
+        if found_obj:
+            ship = self.location(of = self.logged_in_user)
+            ship.location = found_obj.id
+
+    def leave(self):
+        """
+        Move the current player's ship from wherever they are landed to the sector.
+        """
+        ship = self.location(of = self.logged_in_user)
+        location = self.location(of = ship)
+        if hasattr(location,'location'):
+            ship.location = location.location
+
+    def trade(
+        self,
+        item,
+        quantity = 0,
+        for_what = None,
+        seller = None,
+        seller_cargo_location = None,
+        buyer = None,
+        buyer_cargo_location = None,
+    ):
+        """
+        Move an item from the seller to the buyer for another item (usually credits).
+        """
+        # Determine seller and buyer, as well as the location of their cargo
+        if buyer is 'current_user':
+            buyer = self.logged_in_user
+            if hasattr(self.logged_in_user, 'cargo'):
+                buyer_cargo_location = self.logged_in_user
+            else:
+                buyer_cargo_location = buyer_cargo_location or self.location(of = buyer)
+            seller = self.location(of = self.location(of = buyer))
+            seller_cargo_location = seller_cargo_location or seller
+        if seller is 'current_user':
+            seller = self.logged_in_user
+            if hasattr(self.logged_in_user, 'cargo'):
+                seller_cargo_location = self.logged_in_user
+            else:
+                seller_cargo_location = seller_cargo_location or self.location(of = seller)
+            buyer = self.location(of = self.location(of = seller))
+            buyer_cargo_location = buyer_cargo_location or buyer
+        if buyer is None:
+            self.log.error("trade() could not determine the buyer, aborting trade...")
+            return
+        if seller is None:
+            self.log.error("trade() could not determine the seller, aborting trade...")
+            return
+
+        # Make sure the quantity is valid
+        try:
+            quantity = int(quantity)
+        except:
+            self.log.error("trade() called with a non-integer quantity, aborting trade...")
+            return
+        if quantity == 0:
+            self.log.error("trade() called with a quantity of 0, aborting trade...")
+            return
+
+        self.log.debug("Initiating trade from %s (cargo to %s) to %s (cargo to %s) for %s of %s..." % (
+            str(seller.name),
+            str(seller_cargo_location.name),
+            str(buyer.name),
+            str(buyer_cargo_location.name),
+            str(quantity),
+            str(item),
+        ))
+
+        # Determine cost of the item
+        cost = -1
+        if for_what:
+            try:
+                cost = int(for_what)
+            except:
+                self.log.error("trade() called with a non-integer cost, aborting trade...")
+                return
+        else:
+            cost = (seller.get_price(item)['selling'] if seller.is_business else buyer.get_price(item)['buying']) * quantity
+
+        # Trade parameters are valid, proceed with trade
+        if isinstance(item, str) or isinstance(item, unicode):
+            # Assuming item was passed as a commodity id
+            if str(item) in [c.id for c in seller_cargo_location.cargo]:
+                # Seller has the item
+                (item_obj,) = [c for c in seller_cargo_location.cargo if c.id == str(item)]
+                if item_obj.count >= int(quantity):
+                    # Seller has enough of the item, move the item and transfer credits
+                    self._transfer_credits(buyer, seller, cost)
+                    self._move_item(seller_cargo_location, buyer_cargo_location, item_obj, quantity)
+
+    def _move_item(self, from_location, to_location, item, quantity):
+        """
+        Move an item from one place to another without exchanging credits.
+        """
+        self.log.debug("Moving item %s (quantity %s) from %s to %s" % (
+            str(item.name),
+            str(quantity),
+            str(from_location.name),
+            str(to_location.name),
+        ))
+        if isinstance(item, Commodity):
+            if item.count >= int(quantity):
+                # Remove item from from_location
+                item.count -= int(quantity)
+                # Add item to to_location
+                if item.id in [i.id for i in to_location.cargo]:
+                    # Item already exists on to_location
+                    (to_item,) = [i for i in to_location.cargo if i.id == item.id]
+                    to_item.count += int(quantity)
+                else:
+                    # Item needs to be created on to_location
+                    self.log.debug("%s does not have a %s object, creating one" % (
+                        str(to_location.name),
+                        str(item.__class__.__name__),
+                    ))
+                    to_item = globals()[item.__class__.__name__](count = int(quantity))
+                    to_location.cargo.append(to_item)
+
+    def _transfer_credits(self, from_obj, to_obj, amount):
+        """
+        Transfer a number of credits (amount) from from_obj to to_obj
+        """
+        if from_obj.credits >= amount:
+            self.log.debug("Transferring %s credits from %s to %s" % (
+                str(amount),
+                str(from_obj.name),
+                str(to_obj.name),
+            ))
+            from_obj.credits -= amount
+            to_obj.credits += amount
+        else:
+            self.log.error("_transfer_credits() called but from_obj (%s) doesn't have enough credits (%s < %s)" % (
+                str(from_obj.name),
+                str(from_obj.credits),
+                str(amount),
+            ))

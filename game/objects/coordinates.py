@@ -1,9 +1,12 @@
 import uuid
-from objects import GameObject
+from objects import Entity
 
-class Coordinates(GameObject):
+class Coordinates(Entity):
     """
     A Hashable set of coordinates that can be used as a dictionary key.
+
+    This inherits from Entity since it has no name or id (it essentially acts
+    as an id for other objects).
     """
     yaml_tag = "!Coordinates"
 
