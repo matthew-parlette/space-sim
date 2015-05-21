@@ -237,14 +237,14 @@ class Menu(object):
                     # example: Key: R, Value: Ready
                     print "| (%s)%s |" % (
                         key.upper(),
-                        command_dict[key][1:].ljust(int(width) - 7),
+                        command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
                     )
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
                     print "| (%s) %s |" % (
                         key.upper(),
-                        command_dict[key].ljust(int(width) - 8),
+                        command_dict[key].replace('_',' ').ljust(int(width) - 8),
                     )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
