@@ -108,6 +108,8 @@ class Menu(object):
                         command_to_server[command]['name'] = username
                         password = raw_input("%s: " % "Password")
                         command_to_server[command]['password'] = password
+                    # elif command in ['join_game']:
+                    #     self.render_bar(str(command).replace('_',' ').upper())
                     else:
                         # Command is not login or register, fallback to generic
                         # command input
@@ -198,9 +200,12 @@ class Menu(object):
                                 self.render_sector(state, commands)
                         elif 'at' in state:
                             self.render_location(state, commands)
-                    else:
-                        # User not in game
-                        pass
+                else:
+                    # User not in game
+                    self.render_options(
+                        command_dict,
+                        "Join Game"
+                    )
             else:
                 # User is not logged in
                 # print "Player: Not logged in"
