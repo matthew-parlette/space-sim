@@ -73,7 +73,9 @@ class Menu(object):
 
             self.render_state()
 
-            return self.parse_input(self.get_input())
+            user_command = self.parse_input(self.get_input())
+            self.log.debug("user_command is %s" % str(user_command))
+            return user_command
 
         # If there are no commands, then just request state
         return request_state_command
@@ -91,13 +93,18 @@ class Menu(object):
         if user_input in command_menu.keys():
             # Is the user trying to quit?
             if user_input == 'q':
+                self.log.info("User is quitting...")
+                self.log.debug("parse_input() returning %s" % str(None))
                 return None
             if user_input == '?':
+                self.log.info("User is requesting help...")
                 self.render_state(help = True)
+                self.log.debug("parse_input() returning %s" % str(request_state_command))
                 return request_state_command
 
             # User is not quitting, must be a valid command
             command = command_menu[user_input]
+            self.log.debug("user's command is %s" % str(command))
             # Default command to server is to simply request the state
             command_to_server = request_state_command
             # Do we need to get more input? Or just send the command?
@@ -119,12 +126,15 @@ class Menu(object):
                     # Command is not login or register, fallback to generic
                     # command input
                     for param in self._commands_from_server[command]:
+                        self.log.debug("processing command parameter %s..." % str(param))
                         if isinstance(self._commands_from_server[command][param],list):
+                            self.log.debug("parameter %s is a list" % str(param))
                             # Possible answers are provided, select one
                             user_choice = ""
                             options_as_dict = {}
                             for index, value in enumerate(self._commands_from_server[command][param]):
                                 options_as_dict[str(index+1)] = value
+                            self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
                             self.render_options(options_as_dict, title=param)
                             while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
                                 print "\nEnter to cancel\n%s > " % (
@@ -133,15 +143,18 @@ class Menu(object):
                                 user_choice = getch().lower()
                                 if user_choice == '\r':
                                     # Cancelled command, return nothing
+                                    self.log.debug("parse_input() returning %s" % str(request_state_command))
                                     return request_state_command
                             command_to_server[command][param] = options_as_dict[user_choice]
                         else:
                             # Possible answers are not provided, assume
                             # free form text
+                            self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
                             entry = raw_input("%s: " % str(param))
                             command_to_server[command][param] = entry
             elif isinstance(command, dict):
                 # command is already a dictionary, send it to server
+                self.log.debug("command %s is a dictionary..." % str(command))
                 command_to_server = command
             elif isinstance(command, list):
                 self.log.info("command %s is a list" % str(command))
@@ -151,10 +164,29 @@ class Menu(object):
                 #     command_dict[str(index)] = value
                 # selection = self.render
                 # command_to_server = {command: command_dict[str(selection)]}
+            self.log.debug("parse_input() returning %s" % str(command_to_server))
             return command_to_server
         else:
             # Invalid input, try again
+            self.log.debug("user input (%s) was not in command_menu's keys (%s)" % (
+                str(user_input),
+                str(command_menu.keys()),
+            ))
             pass
+        self.log.warning("parse_input() returning nothing!")
+
+    def get_command_input(self, parameters = {}):
+        """
+        For each parameter of a command, get the user's input for that parameter.
+
+        parameters should be a dictionary with a key of the parameter name and a value of the possible values for that parameter.
+
+        Parameter value types:
+        * empty string: free form text input
+        * list: user must select one of the items in the list
+        """
+
+        pass
 
     def build_command_dict(self):
         """Return a dictionary with menu keys that correlate to commands."""
