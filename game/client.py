@@ -481,6 +481,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Process command line options.')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--version', action='version', version='0')
+    parser.add_argument('-H','--host', default='localhost', help='Server name to connect to, default is localhost')
+    parser.add_argument('-P','--port', default=10344, help='Port number for server, default is 10344')
     global args
     args = parser.parse_args()
 
@@ -506,8 +508,8 @@ if __name__ == "__main__":
     log.info("Initializing...")
 
     # Create Client and connect
-    host = 'localhost'
-    port = 10344
+    host = args.host
+    port = args.port
     log.info("Connecting to %s:%s" % (str(host),str(port)))
     socket = socket.create_connection((host,port))
     log.info("Connected to %s:%s" % (str(host),str(port)))
