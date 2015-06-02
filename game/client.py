@@ -52,6 +52,7 @@ class Menu(object):
         self.log = log
         self._state = state
         self._commands_from_server = commands
+        self._state_cache = None
 
     def parse_json(self, json_string):
         self.log.info("Loading state as json...")
@@ -68,6 +69,8 @@ class Menu(object):
             if not args.debug:
                 # clear screen
                 os.system('clear')
+
+            self.update_state_cache()
 
             self.build_command_dict()
 
@@ -281,10 +284,20 @@ class Menu(object):
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
-                    print "| (%s) %s |" % (
-                        key.upper(),
-                        command_dict[key].replace('_',' ').ljust(int(width) - 8),
-                    )
+
+                    obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
+                    if obj and 'is_business' in obj and obj['is_business']:
+                        # If the item is found in the state cache, then print a friendly name
+                        print "| (%s) %s |" % (
+                            key.upper(),
+                            self.render_object(obj).ljust(int(width) - 8)
+                        )
+                    else:
+                        # Otherwise just print the command
+                        print "| (%s) %s |" % (
+                            key.upper(),
+                            command_dict[key].replace('_',' ').ljust(int(width) - 8),
+                        )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
         self.render_bar()
@@ -435,6 +448,33 @@ class Menu(object):
             )
 
         self.render_bar()
+
+    def render_object(self, obj):
+        """
+        Return a string representing this object.
+
+        Object is expected to be a dictionary.
+        """
+        # if obj and 'is_business' in obj and obj['is_business']:
+        return obj['name']
+
+    def update_state_cache(self):
+        """
+        For every object in the state, update the state cache with that object.
+        """
+        if self._state:
+            self.log.debug("Updating state cache...")
+            self._state_cache = self._state_cache or dict()
+            if 'sector' in self._state:
+                self.log.debug("sector found in state")
+                if 'ports' in self._state['sector']:
+                    self.log.debug("processing ports %s..." % str(self._state['sector']['ports']))
+                    for item in self._state['sector']['ports']:
+                        self.log.debug("processing port %s..." % str(item))
+                        if isinstance(item, dict):
+                            if 'id' in item:
+                                self.log.debug("updating cache at %s" % str(item['id']))
+                                self._state_cache[item['id']] = item
 
 if __name__ == "__main__":
     # Parse command line arguments
