@@ -23,6 +23,15 @@ class Coordinates(Entity):
         # Parent init should be called at end of __init__
         super(Coordinates,self).__init__()
 
+    @classmethod
+    def from_yaml(cls, loader, node):
+        mapping = loader.construct_mapping(node)
+        return Coordinates(
+            x = mapping['x'],
+            y = mapping['y'],
+            z = mapping['z'],
+        )
+
     def __eq__(self, other):
         return other and self.x == other.x and self.y == other.y and self.z == other.z
 
