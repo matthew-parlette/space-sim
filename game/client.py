@@ -50,113 +50,149 @@ args = None
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
         self.log = log
-        self.state = state
-        self.commands = commands
+        self._state = state
+        self._commands_from_server = commands
+        self._state_cache = None
+
+    def parse_json(self, json_string):
+        self.log.info("Loading state as json...")
+        response = json.loads(json_string)
+        self.log.info("State received from server: %s" % str(response))
+        self._state = response['state']
+        self._commands_from_server = response['commands']
 
     def display(self, state = None, commands = None):
-        self.state = state or self.state
-        # Commands can be empty from the server (for development)
-        self.commands = commands or self.commands
-
         # Initialize the command to request state
         request_state_command = {'state': {} }
 
-        if self.state:
+        if self._state:
             if not args.debug:
                 # clear screen
                 os.system('clear')
 
-            command_menu = self.command_dict(self.commands)
-            self.render_state(self.state, self.commands, command_menu)
-            # print "Commands\n%s\n%s" % (
-            #     '=' * 8,
-            #     '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()])
-            # )
+            self.update_state_cache()
 
-            print "(? for menu) > ",
-            input_string = getch()
-            print ""
+            self.build_command_dict()
 
-            # Handle user input
-            if input_string in command_menu.keys():
-                # Is the user trying to quit?
-                if input_string == 'q':
-                    return None
-                if input_string == '?':
-                    print "\n%s\nCommands\n%s\n%s\n%s" % (
-                        '=' * 15,
-                        '-' * 8,
-                        '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()]),
-                        '=' * 15,
-                    )
-                    return request_state_command
+            self.render_state()
 
-                # User is not quitting, must be a valid command
-                command = command_menu[input_string]
-                # Default command to server is to simply request the state
-                command_to_server = request_state_command
-                # Do we need to get more input? Or just send the command?
-                if isinstance(command, str) or isinstance(command, unicode):
-                    # Command is just a string, what does the server need for
-                    # this command?
-                    command_to_server = { command: {} }
-                    # The self.commands dictionary tells us what further
-                    # input is required. Login/Register is special
-                    if command in ['login','register']:
-                        self.render_bar(str(command).upper())
-                        username = raw_input("%s: " % "Username")
-                        command_to_server[command]['name'] = username
-                        password = raw_input("%s: " % "Password")
-                        command_to_server[command]['password'] = password
-                    else:
-                        # Command is not login or register, fallback to generic
-                        # command input
-                        for param in self.commands[command]:
-                            if isinstance(self.commands[command][param],list):
-                                # Possible answers are provided, select one
-                                user_choice = ""
-                                options_as_dict = {}
-                                for index, value in enumerate(self.commands[command][param]):
-                                    options_as_dict[str(index+1)] = value
-                                self.render_options(options_as_dict, title=param)
-                                while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
-                                    # print "\nEnter to cancel\n%s (%s) > " % (
-                                    #     str(param),
-                                    #     ",".join(self.commands[command][param])
-                                    # ),
-                                    print "\nEnter to cancel\n%s > " % (
-                                        str(param),
-                                    ),
-                                    user_choice = getch().lower()
-                                    if user_choice == '\r':
-                                        # Cancelled command, return nothing
-                                        return request_state_command
-                                command_to_server[command][param] = options_as_dict[user_choice]
-                            else:
-                                # Possible answers are not provided, assume
-                                # free form text
-                                entry = raw_input("%s: " % str(param))
-                                command_to_server[command][param] = entry
-                elif isinstance(command, dict):
-                    # command is already a dictionary, send it to server
-                    command_to_server = command
-                elif isinstance(command, list):
-                    self.log.info("command %s is a list" % str(command))
-                    # command is a list, convert it to a dictionary
-                    # command_dict = {}
-                    # for index, value in enumerate(command):
-                    #     command_dict[str(index)] = value
-                    # selection = self.render
-                    # command_to_server = {command: command_dict[str(selection)]}
-                return command_to_server
-            else:
-                # Invalid input, try again
-                pass
+            user_command = self.parse_input(self.get_input())
+            self.log.debug("user_command is %s" % str(user_command))
+            return user_command
 
         # If there are no commands, then just request state
         return request_state_command
 
-    def command_dict(self, commands):
+    def get_input(self):
+        print "(? for menu) > ",
+        user_input = getch()
+        print ""
+        return user_input
+
+    def parse_input(self, user_input):
+        # Handle user input
+        command_menu = self._command_dict
+        request_state_command = {'state': {} }
+        if user_input in command_menu.keys():
+            # Is the user trying to quit?
+            if user_input == 'q':
+                self.log.info("User is quitting...")
+                self.log.debug("parse_input() returning %s" % str(None))
+                return None
+            if user_input == '?':
+                self.log.info("User is requesting help...")
+                self.render_state(help = True)
+                self.log.debug("parse_input() returning %s" % str(request_state_command))
+                return request_state_command
+
+            # User is not quitting, must be a valid command
+            command = command_menu[user_input]
+            self.log.debug("user's command is %s" % str(command))
+            # Default command to server is to simply request the state
+            command_to_server = request_state_command
+            # Do we need to get more input? Or just send the command?
+            if isinstance(command, str) or isinstance(command, unicode):
+                # Command is just a string, what does the server need for
+                # this command?
+                command_to_server = { command: {} }
+                # The self.commands dictionary tells us what further
+                # input is required. Login/Register is special
+                if command in ['login','register']:
+                    self.render_bar(str(command).upper())
+                    username = raw_input("%s: " % "Username")
+                    command_to_server[command]['name'] = username
+                    password = raw_input("%s: " % "Password")
+                    command_to_server[command]['password'] = password
+                # elif command in ['join_game']:
+                #     self.render_bar(str(command).replace('_',' ').upper())
+                else:
+                    # Command is not login or register, fallback to generic
+                    # command input
+                    for param in self._commands_from_server[command]:
+                        self.log.debug("processing command parameter %s..." % str(param))
+                        if isinstance(self._commands_from_server[command][param],list):
+                            self.log.debug("parameter %s is a list" % str(param))
+                            # Possible answers are provided, select one
+                            user_choice = ""
+                            options_as_dict = {}
+                            for index, value in enumerate(self._commands_from_server[command][param]):
+                                options_as_dict[str(index+1)] = value
+                            self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
+                            self.render_options(options_as_dict, title=param)
+                            while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
+                                print "\nEnter to cancel\n%s > " % (
+                                    str(param),
+                                ),
+                                user_choice = getch().lower()
+                                if user_choice == '\r':
+                                    # Cancelled command, return nothing
+                                    self.log.debug("parse_input() returning %s" % str(request_state_command))
+                                    return request_state_command
+                            command_to_server[command][param] = options_as_dict[user_choice]
+                        else:
+                            # Possible answers are not provided, assume
+                            # free form text
+                            self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
+                            entry = raw_input("%s: " % str(param))
+                            command_to_server[command][param] = entry
+            elif isinstance(command, dict):
+                # command is already a dictionary, send it to server
+                self.log.debug("command %s is a dictionary..." % str(command))
+                command_to_server = command
+            elif isinstance(command, list):
+                self.log.info("command %s is a list" % str(command))
+                # command is a list, convert it to a dictionary
+                # command_dict = {}
+                # for index, value in enumerate(command):
+                #     command_dict[str(index)] = value
+                # selection = self.render
+                # command_to_server = {command: command_dict[str(selection)]}
+            self.log.debug("parse_input() returning %s" % str(command_to_server))
+            return command_to_server
+        else:
+            # Invalid input, try again
+            self.log.debug("user input (%s) was not in command_menu's keys (%s)" % (
+                str(user_input),
+                str(command_menu.keys()),
+            ))
+            pass
+        self.log.warning("parse_input() did not find a command, returning state request")
+        return request_state_command
+
+    def get_command_input(self, parameters = {}):
+        """
+        For each parameter of a command, get the user's input for that parameter.
+
+        parameters should be a dictionary with a key of the parameter name and a value of the possible values for that parameter.
+
+        Parameter value types:
+        * empty string: free form text input
+        * list: user must select one of the items in the list
+        """
+
+        pass
+
+    def build_command_dict(self):
         """Return a dictionary with menu keys that correlate to commands."""
         result = {
             'q': 'quit', # Default to support quit on the client side
@@ -165,47 +201,59 @@ class Menu(object):
 
         # The move command is special, add the possible move
         # directions to the command dict
-        if 'move' in commands and 'direction' in commands['move']:
-            for direction in commands['move']['direction']:
+        if 'move' in self._commands_from_server and 'direction' in self._commands_from_server['move']:
+            for direction in self._commands_from_server['move']['direction']:
                 if direction not in result.keys():
                     result[direction] = {'move': {'direction': direction}}
 
         # Go through the rest of the commands
-        for key,value in commands.iteritems():
+        for key,value in self._commands_from_server.iteritems():
             for char in key:
                 if char not in result.keys():
                     result[char] = key
                     break
 
         self.log.info("command_dict loaded as %s" % str(result))
-        return result
+        self._command_dict = result
 
-    def render_state(self, state, commands, command_dict):
+    def render_help(self):
+        # print "\n%s\nCommands\n%s\n%s\n%s" % (
+        #     '=' * 15,
+        #     '-' * 8,
+        #     '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()]),
+        #     '=' * 15,
+        # )
+        pass
+
+    def render_state(self, help = False):
         # Get the console dimensions
         height, width = os.popen('stty size', 'r').read().split()
 
-        if 'user' in state:
-            if 'token' in state['user'] and state['user']['token']:
+        if 'user' in self._state:
+            if 'token' in self._state['user'] and self._state['user']['token']:
                 # User is logged in
                 # print "Player: %s" % state['user']['name']
-                if 'user_location' in state:
-                    if 'name' in state['user_location']:
+                if 'user_location' in self._state:
+                    if 'name' in self._state['user_location']:
                         # User is in the game
                         # print "In: %s (your ship)" % state['user_location']['name']
-                        if 'sector' in state:
-                            if 'name' in state['sector'] and 'coordinates' in state['sector']:
+                        if 'sector' in self._state:
+                            if 'name' in self._state['sector'] and 'coordinates' in self._state['sector']:
                                 # User is in a sector
-                                self.render_sector(state, commands)
-                        elif 'at' in state:
-                            self.render_location(state, commands)
-                    else:
-                        # User not in game
-                        pass
+                                self.render_sector(self._state, self._commands_from_server)
+                        elif 'at' in self._state:
+                            self.render_location(self._state, self._commands_from_server)
+                else:
+                    # User not in game
+                    self.render_options(
+                        self._command_dict,
+                        "Join Game"
+                    )
             else:
                 # User is not logged in
                 # print "Player: Not logged in"
                 self.render_options(
-                    command_dict,
+                    self._command_dict,
                     "Welcome"
                 )
 
@@ -225,22 +273,32 @@ class Menu(object):
         self.render_bar(title)
         # main
         print "| " + "".ljust(int(width) - 4) + " |"
-        for key in command_dict.keys():
+        for key in sorted(command_dict.keys()):
             if key not in ['q','?']:
                 if key == command_dict[key][:1]:
                     # Key is the start of the option
                     # example: Key: R, Value: Ready
                     print "| (%s)%s |" % (
                         key.upper(),
-                        command_dict[key][1:].ljust(int(width) - 7),
+                        command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
                     )
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
-                    print "| (%s) %s |" % (
-                        key.upper(),
-                        command_dict[key].ljust(int(width) - 8),
-                    )
+
+                    obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
+                    if obj and 'is_business' in obj and obj['is_business']:
+                        # If the item is found in the state cache, then print a friendly name
+                        print "| (%s) %s |" % (
+                            key.upper(),
+                            self.render_object(obj).ljust(int(width) - 8)
+                        )
+                    else:
+                        # Otherwise just print the command
+                        print "| (%s) %s |" % (
+                            key.upper(),
+                            command_dict[key].replace('_',' ').ljust(int(width) - 8),
+                        )
         print "| " + "".ljust(int(width) - 4) + " |"
         # footer
         self.render_bar()
@@ -291,28 +349,7 @@ class Menu(object):
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
-        right_screen = ["" for x in range(main_display_height)]
-        # Player Info
-        right_screen[1] = "Player Information"
-        if 'credits' in state['user']:
-            right_screen[2] = "Credits: %s" % state['user']['credits']
-
-        # Ship Info
-        right_screen[4] = "Ship Information"
-        right_screen[5] = state['user_location']['name']
-        if 'holds' in state['user_location']:
-            right_screen[6] = "Cargo: %s/%s" % (
-                0,
-                state['user_location']['holds'],
-            )
-        if 'warp' in state['user_location']:
-            right_screen[7] = "Warp Speed: %s" % state['user_location']['warp']
-        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
-            right_screen[8] = "Weapons: %s" % state['user_location']['weapons']
-        if 'hull' in state['user_location']:
-            right_screen[9] = "Hull: %s" % state['user_location']['hull']
-        if 'shields' in state['user_location']:
-            right_screen[10] = "Shields: %s" % state['user_location']['shields']
+        right_screen = self.render_info_panel(height = main_display_height)
 
         for i in range(0,main_display_height):
             left = left_screen[i]
@@ -357,28 +394,7 @@ class Menu(object):
                 str(key[1:])
             )
 
-        right_screen = ["" for x in range(main_display_height)]
-        # Player Info
-        right_screen[1] = "Player Information"
-        if 'credits' in state['user']:
-            right_screen[2] = "Credits: %s" % state['user']['credits']
-
-        # Ship Info
-        right_screen[4] = "Ship Information"
-        right_screen[5] = state['user_location']['name']
-        if 'holds' in state['user_location']:
-            right_screen[6] = "Cargo: %s/%s" % (
-                0,
-                state['user_location']['holds'],
-            )
-        if 'warp' in state['user_location']:
-            right_screen[7] = "Warp Speed: %s" % state['user_location']['warp']
-        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
-            right_screen[8] = "Weapons: %s" % state['user_location']['weapons']
-        if 'hull' in state['user_location']:
-            right_screen[9] = "Hull: %s" % state['user_location']['hull']
-        if 'shields' in state['user_location']:
-            right_screen[10] = "Shields: %s" % state['user_location']['shields']
+        right_screen = self.render_info_panel(height = main_display_height)
 
         for i in range(0,main_display_height):
             left = left_screen[i]
@@ -392,11 +408,71 @@ class Menu(object):
 
         self.render_bar()
 
+    def render_info_panel(self, height):
+        """
+        Return a list of strings that will be printed on the right side of the screen.
+        """
+        info_panel = ["" for x in range(height)]
+        # Player Info
+        info_panel[1] = "Player Information"
+        if 'credits' in self._state['user']:
+            info_panel[2] = "Credits: %s" % self._state['user']['credits']
+
+        # Ship Info
+        info_panel[4] = "Ship Information"
+        info_panel[5] = self._state['user_location']['name']
+        holds_used = 0
+        for item in self._state['user_location']['cargo']:
+            holds_used += item['count'] if 'count' in item else 0
+        if 'holds' in self._state['user_location']:
+            info_panel[6] = "Cargo: %s/%s" % (
+                holds_used,
+                self._state['user_location']['holds'],
+            )
+        if 'warp' in self._state['user_location']:
+            info_panel[7] = "Warp Speed: %s" % self._state['user_location']['warp']
+        if 'weapons' in self._state['user_location'] and self._state['user_location']['weapons']:
+            info_panel[8] = "Weapons: %s" % self._state['user_location']['weapons']
+        if 'hull' in self._state['user_location']:
+            info_panel[9] = "Hull: %s" % self._state['user_location']['hull']
+        if 'shields' in self._state['user_location']:
+            info_panel[10] = "Shields: %s" % self._state['user_location']['shields']
+        return info_panel
+
+    def render_object(self, obj):
+        """
+        Return a string representing this object.
+
+        Object is expected to be a dictionary.
+        """
+        # if obj and 'is_business' in obj and obj['is_business']:
+        return obj['name']
+
+    def update_state_cache(self):
+        """
+        For every object in the state, update the state cache with that object.
+        """
+        if self._state:
+            self.log.debug("Updating state cache...")
+            self._state_cache = self._state_cache or dict()
+            if 'sector' in self._state:
+                self.log.debug("sector found in state")
+                if 'ports' in self._state['sector']:
+                    self.log.debug("processing ports %s..." % str(self._state['sector']['ports']))
+                    for item in self._state['sector']['ports']:
+                        self.log.debug("processing port %s..." % str(item))
+                        if isinstance(item, dict):
+                            if 'id' in item:
+                                self.log.debug("updating cache at %s" % str(item['id']))
+                                self._state_cache[item['id']] = item
+
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Process command line options.')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--version', action='version', version='0')
+    parser.add_argument('-H','--host', default='localhost', help='Server name to connect to, default is localhost')
+    parser.add_argument('-P','--port', default=10344, help='Port number for server, default is 10344')
     global args
     args = parser.parse_args()
 
@@ -422,8 +498,8 @@ if __name__ == "__main__":
     log.info("Initializing...")
 
     # Create Client and connect
-    host = 'localhost'
-    port = 10344
+    host = args.host
+    port = args.port
     log.info("Connecting to %s:%s" % (str(host),str(port)))
     socket = socket.create_connection((host,port))
     log.info("Connected to %s:%s" % (str(host),str(port)))
@@ -448,12 +524,7 @@ if __name__ == "__main__":
             if not line:
                 log.info("Server disconnected")
                 break
-
-            log.info("Loading state as json...")
-            response = json.loads(line)
-            log.info("State received from server: %s" % str(response))
-            menu.state = response['state']
-            menu.commands = response['commands']
+            menu.parse_json(line)
         else:
             # User has quit
             log.info("Exiting game...")
