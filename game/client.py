@@ -349,28 +349,7 @@ class Menu(object):
         left_screen[-1]  = "Warps to: "
         left_screen[-1] += " - ".join(commands['move']['direction'])
 
-        right_screen = ["" for x in range(main_display_height)]
-        # Player Info
-        right_screen[1] = "Player Information"
-        if 'credits' in state['user']:
-            right_screen[2] = "Credits: %s" % state['user']['credits']
-
-        # Ship Info
-        right_screen[4] = "Ship Information"
-        right_screen[5] = state['user_location']['name']
-        if 'holds' in state['user_location']:
-            right_screen[6] = "Cargo: %s/%s" % (
-                0,
-                state['user_location']['holds'],
-            )
-        if 'warp' in state['user_location']:
-            right_screen[7] = "Warp Speed: %s" % state['user_location']['warp']
-        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
-            right_screen[8] = "Weapons: %s" % state['user_location']['weapons']
-        if 'hull' in state['user_location']:
-            right_screen[9] = "Hull: %s" % state['user_location']['hull']
-        if 'shields' in state['user_location']:
-            right_screen[10] = "Shields: %s" % state['user_location']['shields']
+        right_screen = self.render_info_panel(height = main_display_height)
 
         for i in range(0,main_display_height):
             left = left_screen[i]
@@ -415,28 +394,7 @@ class Menu(object):
                 str(key[1:])
             )
 
-        right_screen = ["" for x in range(main_display_height)]
-        # Player Info
-        right_screen[1] = "Player Information"
-        if 'credits' in state['user']:
-            right_screen[2] = "Credits: %s" % state['user']['credits']
-
-        # Ship Info
-        right_screen[4] = "Ship Information"
-        right_screen[5] = state['user_location']['name']
-        if 'holds' in state['user_location']:
-            right_screen[6] = "Cargo: %s/%s" % (
-                0,
-                state['user_location']['holds'],
-            )
-        if 'warp' in state['user_location']:
-            right_screen[7] = "Warp Speed: %s" % state['user_location']['warp']
-        if 'weapons' in state['user_location'] and state['user_location']['weapons']:
-            right_screen[8] = "Weapons: %s" % state['user_location']['weapons']
-        if 'hull' in state['user_location']:
-            right_screen[9] = "Hull: %s" % state['user_location']['hull']
-        if 'shields' in state['user_location']:
-            right_screen[10] = "Shields: %s" % state['user_location']['shields']
+        right_screen = self.render_info_panel(height = main_display_height)
 
         for i in range(0,main_display_height):
             left = left_screen[i]
@@ -449,6 +407,37 @@ class Menu(object):
             )
 
         self.render_bar()
+
+    def render_info_panel(self, height):
+        """
+        Return a list of strings that will be printed on the right side of the screen.
+        """
+        info_panel = ["" for x in range(height)]
+        # Player Info
+        info_panel[1] = "Player Information"
+        if 'credits' in self._state['user']:
+            info_panel[2] = "Credits: %s" % self._state['user']['credits']
+
+        # Ship Info
+        info_panel[4] = "Ship Information"
+        info_panel[5] = self._state['user_location']['name']
+        holds_used = 0
+        for item in self._state['user_location']['cargo']:
+            holds_used += item['count'] if 'count' in item else 0
+        if 'holds' in self._state['user_location']:
+            info_panel[6] = "Cargo: %s/%s" % (
+                holds_used,
+                self._state['user_location']['holds'],
+            )
+        if 'warp' in self._state['user_location']:
+            info_panel[7] = "Warp Speed: %s" % self._state['user_location']['warp']
+        if 'weapons' in self._state['user_location'] and self._state['user_location']['weapons']:
+            info_panel[8] = "Weapons: %s" % self._state['user_location']['weapons']
+        if 'hull' in self._state['user_location']:
+            info_panel[9] = "Hull: %s" % self._state['user_location']['hull']
+        if 'shields' in self._state['user_location']:
+            info_panel[10] = "Shields: %s" % self._state['user_location']['shields']
+        return info_panel
 
     def render_object(self, obj):
         """
