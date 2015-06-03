@@ -176,7 +176,8 @@ class Menu(object):
                 str(command_menu.keys()),
             ))
             pass
-        self.log.warning("parse_input() returning nothing!")
+        self.log.warning("parse_input() did not find a command, returning state request")
+        return request_state_command
 
     def get_command_input(self, parameters = {}):
         """
@@ -272,7 +273,7 @@ class Menu(object):
         self.render_bar(title)
         # main
         print "| " + "".ljust(int(width) - 4) + " |"
-        for key in command_dict.keys():
+        for key in sorted(command_dict.keys()):
             if key not in ['q','?']:
                 if key == command_dict[key][:1]:
                     # Key is the start of the option
