@@ -154,7 +154,6 @@ class GameObject(NamedEntity):
         (item,) = [i for i in self.cargo if i.id == item_id]
         m = float(point2[1] - point1[1]) / float(point2[0] - point1[0])
         b = point1[1] - (m * point1[0])
-        print "self: %s, m: %s, b: %s" % (str(self),str(m),str(b))
         x = float(item.count) / float(self.holds)
         return {
             'selling': item.value * (1 - ((m * x) + b)),
