@@ -445,7 +445,22 @@ class Menu(object):
 
         Object is expected to be a dictionary.
         """
-        # if obj and 'is_business' in obj and obj['is_business']:
+        if obj and 'is_business' in obj and obj['is_business']:
+            # only show that the business is buying if the player has something to sell
+            player_selling = []
+            for item in self._state['user_location']['cargo']:
+                if item['count']:
+                    player_selling.append(item['id'])
+
+            business_buying = ""
+            business_selling = " - ".join(["%s @ $%s" % (c['name'][0],c['cost']['selling']) for c in obj['cargo'] if c['count']])
+            if player_selling:
+                business_buying = " - ".join(["%s @ $%s" % (c['name'][0],c['cost']['buying']) for c in obj['cargo'] if c['id'] in player_selling])
+            return "%s %s%s" % (
+                str(obj['name']),
+                "(Buying: %s) " % business_buying if business_buying else "",
+                "(Selling: %s)" % business_selling,
+            )
         return obj['name']
 
     def update_state_cache(self):
