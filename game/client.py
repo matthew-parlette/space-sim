@@ -47,12 +47,95 @@ class _GetchWindows:
 getch = _Getch()
 args = None
 
+class Screen(object):
+    """
+    A screen has three parts:
+    * title
+    * left screen (main section)
+    * right screen (status section)
+    """
+    def __init__(self, left_screen_percent = 0.75, right_screen_enabled = False):
+        """
+        left_screen_percent: percent (from 0 to 1) of the screen taken up by the left screen
+        """
+        self._left_screen = []
+        self._right_screen = []
+        self._title = None
+        self._left_screen_percent = left_screen_percent
+        self._right_screen_enabled = right_screen_enabled
+
+    def _refresh_dimensions(self):
+        self._height, self._width = os.popen('stty size', 'r').read().split()
+        self._left_width = int(int(self._width) * self._left_screen_percent)
+        self._main_display_height = int(self._height) - 5
+
+    @property
+    def height(self):
+        self._refresh_dimensions()
+        return self._height
+
+    @property
+    def width(self):
+        self._refresh_dimensions()
+        return self._width
+
+    @property
+    def dimensions(self):
+        self._refresh_dimensions()
+        return (self._height,self._width)
+
+    def render(self):
+        """
+        Render the title and screens to the console.
+        """
+        self._render_bar()
+        self._render_line(left = self._title, title = True)
+        self._render_bar()
+        for i in range(0,self._main_display_height):
+            if self._enable_right_screen and i < len(self._left_screen) and i < len(self._right_screen):
+                # Both left and right screens have values
+                left = self._left_screen[i]
+                right = self._right_screen[i]
+                self._render_line(left = left,right = right)
+            elif not self._enable_right_screen and i < len(self._left_screen):
+                # Both left and right screens have values
+                left = self._left_screen[i]
+                self._render_line(left = left)
+            else:
+                # Left and right buffers are empty
+                self._render_line()
+        self._render_bar()
+
+    def _render_bar(self, text = None):
+        # Get the console dimensions
+        print "-" * int(self.width)
+        if text:
+            self.render_line(text)
+            print "-" * int(self.width)
+
+    def _render_line(self, left = "", right = "", border = True, title = False):
+        # Get the console dimensions
+        if self._right_screen_enabled and not title:
+            if border:
+                print "| %s%s |" % (
+                    left.ljust(int(self._left_width) - 0),
+                    "| %s" % (right.ljust(int(self.width - self._left_width))),
+                )
+            else:
+                print left
+        else:
+            if border:
+                print "| " + left.ljust(int(self.width) - 4) + " |"
+            else:
+                print left
+
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
         self.log = log
         self._state = state
         self._commands_from_server = commands
         self._state_cache = None
+        self.screen = Screen()
 
     def parse_json(self, json_string):
         self.log.info("Loading state as json...")
@@ -268,20 +351,21 @@ class Menu(object):
         command_dict).
         """
         # Get the console dimensions
-        height, width = os.popen('stty size', 'r').read().split()
+        height, width = self.screen.dimensions
         # title
-        self.render_bar(title)
+        self.screen._title = title
         # main
-        print "| " + "".ljust(int(width) - 4) + " |"
+        self.screen._enable_right_screen = False
+        left = []
         for key in sorted(command_dict.keys()):
             if key not in ['q','?']:
                 if key == command_dict[key][:1]:
                     # Key is the start of the option
                     # example: Key: R, Value: Ready
-                    print "| (%s)%s |" % (
+                    left.append("(%s)%s" % (
                         key.upper(),
                         command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
-                    )
+                    ))
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
@@ -289,35 +373,19 @@ class Menu(object):
                     obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
                     if obj and 'is_business' in obj and obj['is_business']:
                         # If the item is found in the state cache, then print a friendly name
-                        print "| (%s) %s |" % (
+                        left.append("(%s) %s" % (
                             key.upper(),
                             self.render_object(obj).ljust(int(width) - 8)
-                        )
+                        ))
                     else:
                         # Otherwise just print the command
-                        print "| (%s) %s |" % (
+                        left.append("(%s) %s" % (
                             key.upper(),
                             command_dict[key].replace('_',' ').ljust(int(width) - 8),
-                        )
-        print "| " + "".ljust(int(width) - 4) + " |"
-        # footer
-        self.render_bar()
+                        ))
+        self.screen._left_screen = left
+        self.screen.render()
 
-    def render_bar(self, text = None):
-        # Get the console dimensions
-        height, width = os.popen('stty size', 'r').read().split()
-        print "-" * int(width)
-        if text:
-            self.render_line(text)
-            print "-" * int(width)
-
-    def render_line(self, text = "", border = True):
-        # Get the console dimensions
-        height, width = os.popen('stty size', 'r').read().split()
-        if border:
-            print "| " + text.ljust(int(width) - 4) + " |"
-        else:
-            print text
 
     def render_sector(self, state, commands):
         # Get the console dimensions
@@ -396,15 +464,7 @@ class Menu(object):
 
         right_screen = self.render_info_panel(height = main_display_height)
 
-        for i in range(0,main_display_height):
-            left = left_screen[i]
-            right = right_screen[i]
-            self.render_line(
-                "%s| %s" % (
-                    left.ljust(left_section_width),
-                    right,
-                )
-            )
+
 
         self.render_bar()
 
