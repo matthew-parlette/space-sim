@@ -387,9 +387,6 @@ class Menu(object):
 
         # main
         self.screen._enable_right_screen = True
-        # Get the console dimensions
-        # height, width = os.popen('stty size', 'r').read().split()
-        # left_section_width = int(int(width) * 0.75)
         main_display_height = self.screen._main_display_height
 
         # title
@@ -418,20 +415,23 @@ class Menu(object):
         right_screen = self.render_info_panel(height = main_display_height)
 
         self.screen._left_screen = left_screen
-        self.screen._right_screen = right_screen
+        self.screen._right_screen = self.render_info_panel(height = main_display_height)
         self.screen.render()
 
     def render_location(self, state, commands):
         # Get the console dimensions
-        height, width = os.popen('stty size', 'r').read().split()
-        left_section_width = int(int(width) * 0.75)
-        main_display_height = int(height) - 5
+        height, width = self.screen.dimensions
 
-        self.render_bar("%s (%s,%s)" % (
+        # main
+        self.screen._enable_right_screen = True
+        main_display_height = self.screen._main_display_height
+
+        # title
+        self.screen._title = "%s (%s,%s)" % (
             state['at']['name'],
             state['at']['location']['x'],
             state['at']['location']['y'],
-        ))
+        )
 
         left_screen = ["" for x in range(main_display_height)]
         line = 1
@@ -452,11 +452,9 @@ class Menu(object):
                 str(key[1:])
             )
 
-        right_screen = self.render_info_panel(height = main_display_height)
-
-
-
-        self.render_bar()
+        self.screen._left_screen = left_screen
+        self.screen._right_screen = self.render_info_panel(height = main_display_height)
+        self.screen.render()
 
     def render_info_panel(self, height):
         """
