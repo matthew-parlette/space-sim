@@ -94,30 +94,10 @@ class Screen(object):
         self._render_line(left = self._title, title = True)
         self._render_bar()
         for i in range(0,self._main_display_height):
-            if self._enable_right_screen:
-                if i < len(self._left_screen) and i < len(self._right_screen):
-                    # Both left and right screens have values
-                    left = self._left_screen[i]
-                    right = self._right_screen[i]
-                    self._render_line(left = left,right = right)
-                elif i < len(self._left_screen):
-                    # Left buffer has a value, right is empty
-                    self._render_line(left = self._left_screen[i])
-                elif i < len(self._right_screen):
-                    # Left buffer is empty, right has a value
-                    self._render_line(right = self._right_screen[i])
-                else:
-                    # Left and right buffers are empty
-                    self._render_line()
-            else:
-                # Right screen is disabled
-                if i < len(self._left_screen):
-                    # Both left and right screens have values
-                    left = self._left_screen[i]
-                    self._render_line(left = left)
-                else:
-                    # Left buffer is empty
-                    self._render_line()
+            self._render_line(
+                left = self._left_screen[i] if i < len(self._left_screen) else "",
+                right = self._right_screen[i] if i < len(self._right_screen) else "",
+            )
 
         self._render_bar()
 
