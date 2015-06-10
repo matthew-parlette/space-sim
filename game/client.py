@@ -54,10 +54,11 @@ class Screen(object):
     * left screen (main section)
     * right screen (status section)
     """
-    def __init__(self, left_screen_percent = 0.75, right_screen_enabled = False):
+    def __init__(self, left_screen_percent = 0.75, right_screen_enabled = False, log = None):
         """
         left_screen_percent: percent (from 0 to 1) of the screen taken up by the left screen
         """
+        self.log = log
         self._left_screen = []
         self._right_screen = []
         self._title = None
@@ -88,22 +89,36 @@ class Screen(object):
         """
         Render the title and screens to the console.
         """
+        self.log.debug("Rendering screen (right screen enabled? %s)" % str(self._enable_right_screen))
         self._render_bar()
         self._render_line(left = self._title, title = True)
         self._render_bar()
         for i in range(0,self._main_display_height):
-            if self._enable_right_screen and i < len(self._left_screen) and i < len(self._right_screen):
-                # Both left and right screens have values
-                left = self._left_screen[i]
-                right = self._right_screen[i]
-                self._render_line(left = left,right = right)
-            elif not self._enable_right_screen and i < len(self._left_screen):
-                # Both left and right screens have values
-                left = self._left_screen[i]
-                self._render_line(left = left)
+            if self._enable_right_screen:
+                if i < len(self._left_screen) and i < len(self._right_screen):
+                    # Both left and right screens have values
+                    left = self._left_screen[i]
+                    right = self._right_screen[i]
+                    self._render_line(left = left,right = right)
+                elif i < len(self._left_screen):
+                    # Left buffer has a value, right is empty
+                    self._render_line(left = self._left_screen[i])
+                elif i < len(self._right_screen):
+                    # Left buffer is empty, right has a value
+                    self._render_line(right = self._right_screen[i])
+                else:
+                    # Left and right buffers are empty
+                    self._render_line()
             else:
-                # Left and right buffers are empty
-                self._render_line()
+                # Right screen is disabled
+                if i < len(self._left_screen):
+                    # Both left and right screens have values
+                    left = self._left_screen[i]
+                    self._render_line(left = left)
+                else:
+                    # Left buffer is empty
+                    self._render_line()
+
         self._render_bar()
 
     def _render_bar(self, text = None):
@@ -114,12 +129,11 @@ class Screen(object):
             print "-" * int(self.width)
 
     def _render_line(self, left = "", right = "", border = True, title = False):
-        # Get the console dimensions
-        if self._right_screen_enabled and not title:
+        if self._enable_right_screen and not title:
             if border:
                 print "| %s%s |" % (
-                    left.ljust(int(self._left_width) - 0),
-                    "| %s" % (right.ljust(int(self.width - self._left_width))),
+                    left.ljust(int(self._left_width) - 6),
+                    "| %s" % (right.ljust(int(self.width) - int(self._left_width))),
                 )
             else:
                 print left
@@ -135,7 +149,7 @@ class Menu(object):
         self._state = state
         self._commands_from_server = commands
         self._state_cache = None
-        self.screen = Screen()
+        self.screen = Screen(log = self.log)
 
     def parse_json(self, json_string):
         self.log.info("Loading state as json...")
@@ -200,44 +214,44 @@ class Menu(object):
                 command_to_server = { command: {} }
                 # The self.commands dictionary tells us what further
                 # input is required. Login/Register is special
-                if command in ['login','register']:
-                    self.render_bar(str(command).upper())
-                    username = raw_input("%s: " % "Username")
-                    command_to_server[command]['name'] = username
-                    password = raw_input("%s: " % "Password")
-                    command_to_server[command]['password'] = password
+                # if command in ['login','register']:
+                #     self.render_bar(str(command).upper())
+                #     username = raw_input("%s: " % "Username")
+                #     command_to_server[command]['name'] = username
+                #     password = raw_input("%s: " % "Password")
+                #     command_to_server[command]['password'] = password
                 # elif command in ['join_game']:
                 #     self.render_bar(str(command).replace('_',' ').upper())
-                else:
+                # else:
                     # Command is not login or register, fallback to generic
                     # command input
-                    for param in self._commands_from_server[command]:
-                        self.log.debug("processing command parameter %s..." % str(param))
-                        if isinstance(self._commands_from_server[command][param],list):
-                            self.log.debug("parameter %s is a list" % str(param))
-                            # Possible answers are provided, select one
-                            user_choice = ""
-                            options_as_dict = {}
-                            for index, value in enumerate(self._commands_from_server[command][param]):
-                                options_as_dict[str(index+1)] = value
-                            self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
-                            self.render_options(options_as_dict, title=param)
-                            while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
-                                print "\nEnter to cancel\n%s > " % (
-                                    str(param),
-                                ),
-                                user_choice = getch().lower()
-                                if user_choice == '\r':
-                                    # Cancelled command, return nothing
-                                    self.log.debug("parse_input() returning %s" % str(request_state_command))
-                                    return request_state_command
-                            command_to_server[command][param] = options_as_dict[user_choice]
-                        else:
-                            # Possible answers are not provided, assume
-                            # free form text
-                            self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
-                            entry = raw_input("%s: " % str(param))
-                            command_to_server[command][param] = entry
+                for param in self._commands_from_server[command]:
+                    self.log.debug("processing command parameter %s..." % str(param))
+                    if isinstance(self._commands_from_server[command][param],list):
+                        self.log.debug("parameter %s is a list" % str(param))
+                        # Possible answers are provided, select one
+                        user_choice = ""
+                        options_as_dict = {}
+                        for index, value in enumerate(self._commands_from_server[command][param]):
+                            options_as_dict[str(index+1)] = value
+                        self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
+                        self.render_options(options_as_dict, title=param)
+                        while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
+                            print "\nEnter to cancel\n%s > " % (
+                                str(param),
+                            ),
+                            user_choice = getch().lower()
+                            if user_choice == '\r':
+                                # Cancelled command, return nothing
+                                self.log.debug("parse_input() returning %s" % str(request_state_command))
+                                return request_state_command
+                        command_to_server[command][param] = options_as_dict[user_choice]
+                    else:
+                        # Possible answers are not provided, assume
+                        # free form text
+                        self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
+                        entry = raw_input("%s: " % str(param))
+                        command_to_server[command][param] = entry
             elif isinstance(command, dict):
                 # command is already a dictionary, send it to server
                 self.log.debug("command %s is a dictionary..." % str(command))
@@ -389,17 +403,21 @@ class Menu(object):
 
     def render_sector(self, state, commands):
         # Get the console dimensions
-        height, width = os.popen('stty size', 'r').read().split()
-        left_section_width = int(int(width) * 0.75)
-        main_display_height = int(height) - 5
+        height, width = self.screen.dimensions
 
-        self.render_bar("Sector %s (%s,%s)" % (
+        # main
+        self.screen._enable_right_screen = True
+        # Get the console dimensions
+        # height, width = os.popen('stty size', 'r').read().split()
+        # left_section_width = int(int(width) * 0.75)
+        main_display_height = self.screen._main_display_height
+
+        # title
+        self.screen._title = "Sector %s (%s,%s)" % (
             state['sector']['name'],
             state['sector']['coordinates']['x'],
             state['sector']['coordinates']['y'],
-        ))
-
-        # self.render_line("".ljust(left_section_width) + "| ")
+        )
 
         left_screen = ["" for x in range(main_display_height)]
         if 'stars' in state['sector'] and state['sector']['stars']:
@@ -419,17 +437,9 @@ class Menu(object):
 
         right_screen = self.render_info_panel(height = main_display_height)
 
-        for i in range(0,main_display_height):
-            left = left_screen[i]
-            right = right_screen[i]
-            self.render_line(
-                "%s| %s" % (
-                    left.ljust(left_section_width),
-                    right,
-                )
-            )
-
-        self.render_bar()
+        self.screen._left_screen = left_screen
+        self.screen._right_screen = right_screen
+        self.screen.render()
 
     def render_location(self, state, commands):
         # Get the console dimensions
