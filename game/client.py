@@ -100,6 +100,7 @@ class Screen(object):
             )
 
         self._render_bar()
+        self._render_prompt()
 
     def _render_bar(self, text = None):
         # Get the console dimensions
@@ -122,6 +123,9 @@ class Screen(object):
                 print "| " + left.ljust(int(self.width) - 4) + " |"
             else:
                 print left
+
+    def _render_prompt(self):
+        print "(? for menu) > ",
 
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
@@ -161,9 +165,8 @@ class Menu(object):
         return request_state_command
 
     def get_input(self):
-        print "(? for menu) > ",
+        # print "(? for menu) > ",
         user_input = getch()
-        print ""
         return user_input
 
     def parse_input(self, user_input):
@@ -217,9 +220,9 @@ class Menu(object):
                         self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
                         self.render_options(options_as_dict, title=param)
                         while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
-                            print "\nEnter to cancel\n%s > " % (
-                                str(param),
-                            ),
+                            # print "\nEnter to cancel\n%s > " % (
+                            #     str(param),
+                            # ),
                             user_choice = getch().lower()
                             if user_choice == '\r':
                                 # Cancelled command, return nothing
@@ -346,20 +349,25 @@ class Menu(object):
         """
         # Get the console dimensions
         height, width = self.screen.dimensions
+        main_display_height = self.screen._main_display_height
+
         # title
         self.screen._title = title
         # main
         self.screen._enable_right_screen = False
-        left = []
+
+        left = ["" for x in range(main_display_height)]
+        index = 0
         for key in sorted(command_dict.keys()):
             if key not in ['q','?']:
                 if key == command_dict[key][:1]:
                     # Key is the start of the option
                     # example: Key: R, Value: Ready
-                    left.append("(%s)%s" % (
+                    left[index] = "(%s)%s" % (
                         key.upper(),
                         command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
-                    ))
+                    )
+                    index += 1
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
@@ -367,16 +375,20 @@ class Menu(object):
                     obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
                     if obj and 'is_business' in obj and obj['is_business']:
                         # If the item is found in the state cache, then print a friendly name
-                        left.append("(%s) %s" % (
+                        left[index] = "(%s) %s" % (
                             key.upper(),
                             self.render_object(obj).ljust(int(width) - 8)
-                        ))
+                        )
+                        index += 1
                     else:
                         # Otherwise just print the command
-                        left.append("(%s) %s" % (
+                        left[index] = "(%s) %s" % (
                             key.upper(),
                             command_dict[key].replace('_',' ').ljust(int(width) - 8),
-                        ))
+                        )
+                        index += 1
+        left[-1] = "(Enter to cancel)"
+
         self.screen._left_screen = left
         self.screen.render()
 
