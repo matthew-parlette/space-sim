@@ -245,7 +245,7 @@ class Menu(object):
                             for index, value in enumerate(self._commands_from_server[command][param]):
                                 options_as_dict[str(index+1)] = value
                             self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
-                            self.render_options(options_as_dict, title=param)
+                            self.render_options(options_as_dict, title=param, user_can_cancel = True)
                             while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
                                 # print "\nEnter to cancel\n%s > " % (
                                 #     str(param),
@@ -354,17 +354,19 @@ class Menu(object):
                     # User not in game
                     self.render_options(
                         self._command_dict,
-                        "Join Game"
+                        "Join Game",
+                        user_can_cancel = False,
                     )
             else:
                 # User is not logged in
                 # print "Player: Not logged in"
                 self.render_options(
                     self._command_dict,
-                    "Welcome"
+                    "Welcome",
+                    user_can_cancel = False,
                 )
 
-    def render_options(self, command_dict, title = None):
+    def render_options(self, command_dict, title = None, user_can_cancel = True):
         """
         Render all available options on the screen.
 
@@ -414,7 +416,7 @@ class Menu(object):
                             command_dict[key].replace('_',' ').ljust(int(width) - 8),
                         )
                         index += 1
-        left[-1] = "(Enter to cancel)"
+        if user_can_cancel: left[-1] = "(Enter to cancel)"
 
         self.screen._left_screen = left
         self.screen.render()
