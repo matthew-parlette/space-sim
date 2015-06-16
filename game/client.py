@@ -260,7 +260,13 @@ class Menu(object):
                             # Possible answers are not provided, assume
                             # free form text
                             self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
-                            entry = raw_input("\n%s: " % str(param))
+                            self.screen._title = str(command).replace('_',' ').title()
+                            self.screen._left_screen = []
+                            self.screen._enable_right_screen = False
+                            self.screen._full_screen = False
+                            self.screen._prompt = str(param).replace('_',' ').title()
+                            self.screen.render()
+                            entry = raw_input()
                             command_to_server[command][param] = entry
             elif isinstance(command, dict):
                 # command is already a dictionary, send it to server
