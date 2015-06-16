@@ -54,7 +54,7 @@ class Screen(object):
     * left screen (main section)
     * right screen (status section)
     """
-    def __init__(self, left_screen_percent = 0.75, right_screen_enabled = False, log = None):
+    def __init__(self, left_screen_percent = 0.75, right_screen_enabled = False, full_screen = True, prompt = None, log = None):
         """
         left_screen_percent: percent (from 0 to 1) of the screen taken up by the left screen
         """
@@ -64,6 +64,8 @@ class Screen(object):
         self._title = None
         self._left_screen_percent = left_screen_percent
         self._right_screen_enabled = right_screen_enabled
+        self._full_screen = full_screen
+        self._prompt = prompt
 
     def _refresh_dimensions(self):
         self._height, self._width = os.popen('stty size', 'r').read().split()
@@ -90,16 +92,26 @@ class Screen(object):
         Render the title and screens to the console.
         """
         self.log.debug("Rendering screen (right screen enabled? %s)" % str(self._enable_right_screen))
+        # Empty line to make sure we start all the way on the left
+        print ""
         self._render_bar()
         self._render_line(left = self._title, title = True)
         self._render_bar()
-        for i in range(0,self._main_display_height):
-            self._render_line(
-                left = self._left_screen[i] if i < len(self._left_screen) else "",
-                right = self._right_screen[i] if i < len(self._right_screen) else "",
-            )
+        if self._full_screen:
+            for i in range(0,self._main_display_height):
+                self._render_line(
+                    left = self._left_screen[i] if i < len(self._left_screen) else "",
+                    right = self._right_screen[i] if i < len(self._right_screen) else "",
+                )
+        else:
+            for i in range(0,max(len(self._left_screen),len(self._right_screen))):
+                self._render_line(
+                    left = self._left_screen[i] if i < len(self._left_screen) else "",
+                    right = self._right_screen[i] if i < len(self._right_screen) else "",
+                )
 
-        self._render_bar()
+        # Only render the bottom bar if there was something printed on either screen
+        if len(self._left_screen) or len(self._right_screen): self._render_bar()
         self._render_prompt()
 
     def _render_bar(self, text = None):
@@ -125,7 +137,13 @@ class Screen(object):
                 print left
 
     def _render_prompt(self):
-        print "(? for menu) > ",
+        if self._prompt:
+            print self._prompt + " > ",
+        else:
+            print "(? for menu) > ",
+
+        # Reset prompt
+        self._prompt = None
 
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
@@ -197,44 +215,53 @@ class Menu(object):
                 command_to_server = { command: {} }
                 # The self.commands dictionary tells us what further
                 # input is required. Login/Register is special
-                # if command in ['login','register']:
-                #     self.render_bar(str(command).upper())
-                #     username = raw_input("%s: " % "Username")
-                #     command_to_server[command]['name'] = username
-                #     password = raw_input("%s: " % "Password")
-                #     command_to_server[command]['password'] = password
+                if command in ['login','register']:
+                    self.log.debug("Displaying user/pass screen to user...")
+                    self.screen._title = "Login"
+                    self.screen._left_screen = []
+                    self.screen._enable_right_screen = False
+                    self.screen._full_screen = False
+                    self.screen._prompt = "Username"
+                    self.screen.render()
+                    username = raw_input()
+                    command_to_server[command]['name'] = username
+                    self.screen._prompt = "Password"
+                    self.screen.render()
+                    password = raw_input()
+                    command_to_server[command]['password'] = password
+                    self.screen._full_screen = True
                 # elif command in ['join_game']:
                 #     self.render_bar(str(command).replace('_',' ').upper())
-                # else:
+                else:
                     # Command is not login or register, fallback to generic
                     # command input
-                for param in self._commands_from_server[command]:
-                    self.log.debug("processing command parameter %s..." % str(param))
-                    if isinstance(self._commands_from_server[command][param],list):
-                        self.log.debug("parameter %s is a list" % str(param))
-                        # Possible answers are provided, select one
-                        user_choice = ""
-                        options_as_dict = {}
-                        for index, value in enumerate(self._commands_from_server[command][param]):
-                            options_as_dict[str(index+1)] = value
-                        self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
-                        self.render_options(options_as_dict, title=param)
-                        while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
-                            # print "\nEnter to cancel\n%s > " % (
-                            #     str(param),
-                            # ),
-                            user_choice = getch().lower()
-                            if user_choice == '\r':
-                                # Cancelled command, return nothing
-                                self.log.debug("parse_input() returning %s" % str(request_state_command))
-                                return request_state_command
-                        command_to_server[command][param] = options_as_dict[user_choice]
-                    else:
-                        # Possible answers are not provided, assume
-                        # free form text
-                        self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
-                        entry = raw_input("%s: " % str(param))
-                        command_to_server[command][param] = entry
+                    for param in self._commands_from_server[command]:
+                        self.log.debug("processing command parameter %s..." % str(param))
+                        if isinstance(self._commands_from_server[command][param],list):
+                            self.log.debug("parameter %s is a list" % str(param))
+                            # Possible answers are provided, select one
+                            user_choice = ""
+                            options_as_dict = {}
+                            for index, value in enumerate(self._commands_from_server[command][param]):
+                                options_as_dict[str(index+1)] = value
+                            self.log.debug("presenting parameter options to user as %s..." % str(options_as_dict))
+                            self.render_options(options_as_dict, title=param)
+                            while user_choice not in [str(s) for s in range(1,len(options_as_dict.keys()) + 1)]:
+                                # print "\nEnter to cancel\n%s > " % (
+                                #     str(param),
+                                # ),
+                                user_choice = getch().lower()
+                                if user_choice == '\r':
+                                    # Cancelled command, return nothing
+                                    self.log.debug("parse_input() returning %s" % str(request_state_command))
+                                    return request_state_command
+                            command_to_server[command][param] = options_as_dict[user_choice]
+                        else:
+                            # Possible answers are not provided, assume
+                            # free form text
+                            self.log.debug("asking user for free-form input for '%s' parameter..." % str(param))
+                            entry = raw_input("\n%s: " % str(param))
+                            command_to_server[command][param] = entry
             elif isinstance(command, dict):
                 # command is already a dictionary, send it to server
                 self.log.debug("command %s is a dictionary..." % str(command))
