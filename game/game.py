@@ -6,6 +6,7 @@ import yaml
 import uuid
 import datetime
 import shutil
+import pprint
 from random import randint, random
 from objects import GameObject
 from objects.manmade import ManMade
@@ -102,9 +103,14 @@ class Game(object):
 
     def location(self, of):
         """Return location object for the user's current location"""
+        self.log.debug("Looking up location for %s..." % str(of))
         if hasattr(of, 'location_id'):
-            if of.location_id in Game._ships.keys():
-                return Game._ships[of.location_id]
+            self.log.debug("Object (of) has a location_id of %s, looking it up..." % str(of.location_id))
+            # Need to go through each ship to find out if the id matches
+            for obj_list in Game._ships.values():
+                for obj in obj_list:
+                    if of.location_id == obj.id: return obj
+                    return Game._ships[of.location_id]
         if hasattr(of, 'coordinates'):
             if of.coordinates in Game._sectors.keys():
                 return Game._sectors[of.coordinates]
@@ -297,7 +303,7 @@ class Game(object):
         # Create ship
         ship = Ship(name = ship_name)
         ship.holds = 100
-        Game._ships[ship.id] = ship
+        # Game._ships[ship.id] = ship
 
         # Put player in ship
         self.logged_in_user.location_id = ship.id
@@ -328,6 +334,11 @@ class Game(object):
             str(coordinates),
         ))
         ship.location = coordinates
+        shared_dict = getattr(Game,'_ships', None)
+        if coordinates in shared_dict:
+            shared_dict[coordinates].append(ship)
+        else:
+            shared_dict[coordinates] = [ship]
         return True
 
     def move(self, cardinal_direction = None, coordinates = None):
@@ -340,7 +351,15 @@ class Game(object):
                 coordinates = ship.location.adjacent(cardinal_direction)
 
         if coordinates:
-            ship.location = ship.location.adjacent(cardinal_direction)
+            shared_dict = getattr(Game,'_ships')
+            # Remove from current sector
+            shared_dict[ship.location].remove(ship)
+            # Move to new sector
+            if coordinates in shared_dict:
+                shared_dict[coordinates].append(ship)
+            else:
+                shared_dict[coordinates] = [ship]
+            ship.location = coordinates
 
             # Call self.sector() so the sector is generated, if necessary
             self.sector(ship.location)
@@ -411,15 +430,22 @@ class Game(object):
             return []
 
         contents = []
+        self.log.debug("Building content list for %s..." % str(coordinates))
         # GameObject -> ManMade or Natural -> Object we want here
         for parent in GameObject.__subclasses__():
+            self.log.debug("Processing %s objects..." % str(parent))
             for child in globals()[parent.__name__].__subclasses__():
+                self.log.debug("Processing %s objects under %s..." % (str(child),str(parent)))
                 # subclasses returns full path, ex: objects.star.Star
                 # child.__name__ returns Star
                 shared_object = getattr(Game,'_' + globals()[child.__name__]().plural())
                 if shared_object and coordinates in shared_object:
                     contents += shared_object[coordinates]
-        self.log.debug("Coordinates %s contents: %s" % (str(coordinates),str(contents)))
+                    self.log.debug("Added %s to contents: %s" % (
+                        str(globals()[child.__name__]().plural()),
+                        str(shared_object[coordinates]),
+                    ))
+        self.log.debug("Coordinates %s contents: %s" % (str(coordinates),pprint.pformat(contents)))
         return contents
 
     def enter(self, id):
