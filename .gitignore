@@ -54,3 +54,6 @@ docs/_build/
 
 # Data directory
 data/
+
+# Vim
+*.swp

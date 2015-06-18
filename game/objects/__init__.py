@@ -1,5 +1,6 @@
 import yaml
 import uuid
+import pprint
 from copy import deepcopy
 from random import randint
 
@@ -42,7 +43,7 @@ class Entity(yaml.YAMLObject):
         return result
 
     def __repr__(self):
-        return str(self.__dict__)
+        return str(pprint.pformat(self.__dict__))
 
     # This method is used by json.dumps() when sending it to a client
     def __str__(self):
