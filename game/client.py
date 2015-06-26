@@ -199,9 +199,8 @@ class Menu(object):
                 return None
             if user_input == '?':
                 self.log.info("User is requesting help...")
-                self.render_state(help = True)
-                self.log.debug("parse_input() returning %s" % str(request_state_command))
-                return request_state_command
+                self.render_options(command_menu, title = "Help")
+                return self.parse_input(self.get_input())
 
             # User is not quitting, must be a valid command
             command = command_menu[user_input]
@@ -330,12 +329,6 @@ class Menu(object):
         self._command_dict = result
 
     def render_help(self):
-        # print "\n%s\nCommands\n%s\n%s\n%s" % (
-        #     '=' * 15,
-        #     '-' * 8,
-        #     '\n'.join(["%s - %s" % (key, value) for (key, value) in command_menu.items()]),
-        #     '=' * 15,
-        # )
         pass
 
     def render_state(self, help = False):
@@ -382,6 +375,8 @@ class Menu(object):
         command (single character that is the key for the command in
         command_dict).
         """
+        self.log.debug("Rendering options dictionary %s..." % str(command_dict))
+
         # Get the console dimensions
         height, width = self.screen.dimensions
         main_display_height = self.screen._main_display_height
@@ -395,33 +390,41 @@ class Menu(object):
         index = 0
         for key in sorted(command_dict.keys()):
             if key not in ['q','?']:
-                if key == command_dict[key][:1]:
+                self.log.debug("Processing option dictionary key %s..." % str(key))
+                if isinstance(command_dict[key],str) and key == command_dict[key][:1]:
                     # Key is the start of the option
                     # example: Key: R, Value: Ready
                     left[index] = "(%s)%s" % (
                         key.upper(),
                         command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
                     )
-                    index += 1
                 else:
                     # Key is not the start of the option
                     # example: Key: 1, Value: Ready
+                    #   or
+                    # example: Key: e, Value: {'move': {'direction': 'e'}}
 
-                    obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
-                    if obj and 'is_business' in obj and obj['is_business']:
-                        # If the item is found in the state cache, then print a friendly name
-                        left[index] = "(%s) %s" % (
-                            key.upper(),
-                            self.render_object(obj).ljust(int(width) - 8)
-                        )
-                        index += 1
+                    if isinstance(command_dict[key],str) or isinstance(command_dict[key],unicode):
+                        obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
+                        if obj and 'is_business' in obj and obj['is_business']:
+                            # If the item is found in the state cache, then print a friendly name
+                            left[index] = "(%s) %s" % (
+                                key.upper(),
+                                self.render_object(obj).ljust(int(width) - 8)
+                            )
+                        else:
+                            # Otherwise just print the command
+                            left[index] = "(%s) %s" % (
+                                key.upper(),
+                                command_dict[key].replace('_',' ').ljust(int(width) - 8),
+                            )
                     else:
-                        # Otherwise just print the command
+                        # This key's value is a dictionary or list
                         left[index] = "(%s) %s" % (
                             key.upper(),
-                            command_dict[key].replace('_',' ').ljust(int(width) - 8),
+                            str(command_dict[key]).ljust(int(width) - 8),
                         )
-                        index += 1
+                index += 1
         if user_can_cancel: left[-1] = "(Enter to cancel)"
 
         self.screen._left_screen = left
