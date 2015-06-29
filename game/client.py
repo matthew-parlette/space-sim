@@ -68,6 +68,7 @@ class Screen(object):
         self._full_screen = full_screen
         self._prompt = prompt
         self._color_border = color.Fore.WHITE
+        self._color_title = color.Fore.MAGENTA
 
     def _refresh_dimensions(self):
         self._height, self._width = os.popen('stty size', 'r').read().split()
@@ -137,6 +138,9 @@ class Screen(object):
                 # Before printing, we may need to truncate the line if it is too long
                 # Check the length, but remove color codes before doing so
                 if len(left) - (5 * left.count('\033')) > self._left_width - 7:
+                    self.log.debug("Truncating line...")
+                    # This will only account for colors with two digits, ex: \033[30m
+                    # Styles will not work since they are only one digit, ex: \033[1m
                     left = left[0:(self._left_width + (5 * left.count('\033')) - 10)]
                     left = left + self._color_border + "..."
                 print "%s| %s%s %s|" % (
@@ -149,7 +153,11 @@ class Screen(object):
                 print left
         else:
             if border:
-                print self._color_border + "| " + left.ljust(int(self.width) - 4) + self._color_border + " |"
+                if title:
+                    # For titles, print the text in color
+                    print self._color_border + "| " + self._color_title + left.ljust(int(self.width) - 4 ) + self._color_border + " |"
+                else:
+                    print self._color_border + "| " + left.ljust(int(self.width) - 4) + self._color_border + " |"
             else:
                 print left
 
@@ -169,11 +177,18 @@ class Menu(object):
         self._commands_from_server = commands
         self._state_cache = None
         self.screen = Screen(log = self.log)
+        self._color_none = color.Fore.WHITE
+        self._color_title = color.Fore.MAGENTA
         self._color_heading = color.Fore.YELLOW
         self._color_list = color.Fore.CYAN
         self._color_good = color.Fore.GREEN
         self._color_normal = color.Fore.BLUE
         self._color_bad = color.Fore.RED
+        self._color_option_key = color.Fore.GREEN
+        self._color_option_value = color.Fore.WHITE
+        self._color_credits = color.Fore.GREEN
+        self._color_item_name =  color.Fore.BLUE
+        self._color_item_quantity = color.Fore.CYAN
 
     def parse_json(self, json_string):
         self.log.info("Loading state as json...")
@@ -242,11 +257,11 @@ class Menu(object):
                     self.screen._left_screen = []
                     self.screen._enable_right_screen = False
                     self.screen._full_screen = False
-                    self.screen._prompt = "Username"
+                    self.screen._prompt = color.Fore.BLUE + "Username"
                     self.screen.render()
                     username = raw_input()
                     command_to_server[command]['name'] = username
-                    self.screen._prompt = "Password"
+                    self.screen._prompt = color.Fore.BLUE + "Password"
                     self.screen.render()
                     password = raw_input()
                     command_to_server[command]['password'] = password
@@ -416,8 +431,12 @@ class Menu(object):
                 if isinstance(command_dict[key],str) and key == command_dict[key][:1]:
                     # Key is the start of the option
                     # example: Key: R, Value: Ready
-                    left[index] = "(%s)%s" % (
+                    left[index] = "%s(%s%s%s)%s%s" % (
+                        self._color_none,
+                        self._color_option_key,
                         key.upper(),
+                        self._color_none,
+                        self._color_option_value,
                         command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
                     )
                 else:
@@ -430,20 +449,32 @@ class Menu(object):
                         obj = self._state_cache[command_dict[key]] if command_dict[key] in self._state_cache else None
                         if obj and 'is_business' in obj and obj['is_business']:
                             # If the item is found in the state cache, then print a friendly name
-                            left[index] = "(%s) %s" % (
+                            left[index] = "%s(%s%s%s) %s%s" % (
+                                self._color_none,
+                                self._color_option_key,
                                 key.upper(),
+                                self._color_none,
+                                self._color_option_value,
                                 self.render_object(obj).ljust(int(width) - 8)
                             )
                         else:
                             # Otherwise just print the command
-                            left[index] = "(%s) %s" % (
+                            left[index] = "%s(%s%s%s) %s%s" % (
+                                self._color_none,
+                                self._color_option_key,
                                 key.upper(),
+                                self._color_none,
+                                self._color_option_value,
                                 command_dict[key].replace('_',' ').ljust(int(width) - 8),
                             )
                     else:
                         # This key's value is a dictionary or list
-                        left[index] = "(%s) %s" % (
+                        left[index] = "%s(%s%s%s) %s%s" % (
+                            self._color_none,
+                            self._color_option_key,
                             key.upper(),
+                            self._color_none,
+                            self._color_option_value,
                             str(command_dict[key]).ljust(int(width) - 8),
                         )
                 index += 1
@@ -462,7 +493,7 @@ class Menu(object):
         main_display_height = self.screen._main_display_height
 
         # title
-        self.screen._title = color.Fore.MAGENTA + "Sector %s (%s,%s)" % (
+        self.screen._title = "Sector %s (%s,%s)" % (
             state['sector']['name'],
             state['sector']['coordinates']['x'],
             state['sector']['coordinates']['y'],
@@ -502,7 +533,7 @@ class Menu(object):
         main_display_height = self.screen._main_display_height
 
         # title
-        self.screen._title = color.Fore.MAGENTA + "%s (%s,%s)" % (
+        self.screen._title = "%s (%s,%s)" % (
             state['at']['name'],
             state['at']['location']['x'],
             state['at']['location']['y'],
@@ -513,18 +544,27 @@ class Menu(object):
         # Show the cargo at this location
         if 'cargo' in state['at'] and state['at']['cargo']:
             for item in state['at']['cargo']:
-                left_screen[line] = "%s (%s) (B: $%s, S: $%s)" % (
+                left_screen[line] = "%s%s %s(%s%s%s) %s(B: %s$%s%s, S: %s$%s%s)" % (
+                    self._color_item_name,
                     str(item['name']),
+                    self._color_none,
+                    self._color_item_quantity,
                     str(item['count']),
+                    self._color_none,
+                    self._color_none,
+                    self._color_credits,
                     str(item['cost']['buying']),
+                    self._color_none,
+                    self._color_credits,
                     str(item['cost']['selling']),
+                    self._color_none,
                 )
                 line += 1
         # Show the available commands
         for index, key in enumerate(commands):
             left_screen[-(index+1)] = "(%s)%s" % (
-                str(key[:1]),
-                str(key[1:])
+                self._color_option_key + str(key[:1]) + self._color_none,
+                self._color_option_value + str(key[1:])
             )
 
         self.screen._left_screen = left_screen
@@ -576,11 +616,20 @@ class Menu(object):
                     player_selling.append(item['id'])
 
             business_buying = ""
-            business_selling = " - ".join(["%s @ $%s" % (c['name'][0],c['cost']['selling']) for c in obj['cargo'] if c['count']])
+            business_selling = " - ".join(["%s%s%s @ %s$%s%s" % (
+                self._color_normal,
+                c['name'][0],
+                self._color_none,
+                self._color_credits,
+                c['cost']['selling'],
+                self._color_none,
+            ) for c in obj['cargo'] if c['count']])
             if player_selling:
                 business_buying = " - ".join(["%s @ $%s" % (c['name'][0],c['cost']['buying']) for c in obj['cargo'] if c['id'] in player_selling])
-            return "%s %s%s" % (
+            return "%s%s%s %s%s" % (
+                self._color_list,
                 str(obj['name']),
+                self._color_none,
                 "(Buying: %s) " % business_buying if business_buying else "",
                 "(Selling: %s)" % business_selling,
             )
