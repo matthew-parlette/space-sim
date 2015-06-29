@@ -6,6 +6,7 @@ import os
 import json
 import socket
 import pprint
+import colorama as color
 
 class _Getch:
     """Gets a single character from standard input.  Does not echo to the
@@ -66,6 +67,7 @@ class Screen(object):
         self._right_screen_enabled = right_screen_enabled
         self._full_screen = full_screen
         self._prompt = prompt
+        self._color_border = color.Fore.WHITE
 
     def _refresh_dimensions(self):
         self._height, self._width = os.popen('stty size', 'r').read().split()
@@ -116,7 +118,7 @@ class Screen(object):
 
     def _render_bar(self, text = None):
         # Get the console dimensions
-        print "-" * int(self.width)
+        print self._color_border + "-" * int(self.width)
         if text:
             self.render_line(text)
             print "-" * int(self.width)
@@ -124,15 +126,17 @@ class Screen(object):
     def _render_line(self, left = "", right = "", border = True, title = False):
         if self._enable_right_screen and not title:
             if border:
-                print "| %s%s |" % (
-                    left.ljust(int(self._left_width) - 6),
-                    "| %s" % (right.ljust(int(self.width) - int(self._left_width))),
+                print "%s| %s%s %s|" % (
+                    self._color_border,
+                    left.ljust(int(self._left_width) - 6 + (5 * left.count('\033'))),
+                    self._color_border + "| %s" % (right.ljust(int(self.width) - int(self._left_width) + (5 * right.count('\033')))),
+                    self._color_border,
                 )
             else:
                 print left
         else:
             if border:
-                print "| " + left.ljust(int(self.width) - 4) + " |"
+                print self._color_border + "| " + left.ljust(int(self.width) - 4) + self._color_border + " |"
             else:
                 print left
 
@@ -140,7 +144,7 @@ class Screen(object):
         if self._prompt:
             print self._prompt + " > ",
         else:
-            print "(? for menu) > ",
+            print color.Style.DIM + color.Fore.MAGENTA + "(? for menu) " + color.Style.BRIGHT + color.Fore.WHITE + "> ",
 
         # Reset prompt
         self._prompt = None
@@ -152,6 +156,11 @@ class Menu(object):
         self._commands_from_server = commands
         self._state_cache = None
         self.screen = Screen(log = self.log)
+        self._color_heading = color.Fore.YELLOW
+        self._color_list = color.Fore.CYAN
+        self._color_good = color.Fore.GREEN
+        self._color_normal = color.Fore.BLUE
+        self._color_bad = color.Fore.RED
 
     def parse_json(self, json_string):
         self.log.info("Loading state as json...")
@@ -440,7 +449,7 @@ class Menu(object):
         main_display_height = self.screen._main_display_height
 
         # title
-        self.screen._title = "Sector %s (%s,%s)" % (
+        self.screen._title = color.Fore.MAGENTA + "Sector %s (%s,%s)" % (
             state['sector']['name'],
             state['sector']['coordinates']['x'],
             state['sector']['coordinates']['y'],
@@ -448,22 +457,22 @@ class Menu(object):
 
         left_screen = ["" for x in range(main_display_height)]
         if 'stars' in state['sector'] and state['sector']['stars']:
-            left_screen[1]   = "Stars: "
-            left_screen[1]  += " - ".join([star['name'] for star in state['sector']['stars']])
+            left_screen[1]   = self._color_heading + "Stars: "
+            left_screen[1]  += self._color_list + " - ".join([star['name'] for star in state['sector']['stars']])
         if 'planets' in state['sector'] and state['sector']['planets']:
-            left_screen[3]   = "Planets: "
-            left_screen[3]  += " - ".join([planet['name'] for planet in state['sector']['planets']])
+            left_screen[3]   = self._color_heading + "Planets: "
+            left_screen[3]  += self._color_list + " - ".join([planet['name'] for planet in state['sector']['planets']])
         if 'stations' in state['sector'] and state['sector']['stations']:
-            left_screen[5]   = "Stations: "
-            left_screen[5]  += " - ".join([station['name'] for station in state['sector']['stations']])
+            left_screen[5]   = self._color_heading + "Stations: "
+            left_screen[5]  += self._color_list + " - ".join([station['name'] for station in state['sector']['stations']])
         if 'ports' in state['sector'] and state['sector']['ports']:
-            left_screen[7]   = "Ports: "
-            left_screen[7]  += " - ".join([port['name'] for port in state['sector']['ports']])
+            left_screen[7]   = self._color_heading + "Ports: "
+            left_screen[7]  += self._color_list + " - ".join([port['name'] for port in state['sector']['ports']])
         if 'ships' in state['sector'] and state['sector']['ships']:
-            left_screen[9]   = "Ships: "
-            left_screen[9]  += " - ".join([ship['name'] for ship in state['sector']['ships']])
-        left_screen[-1]  = "Warps to: "
-        left_screen[-1] += " - ".join(commands['move']['direction'])
+            left_screen[9]   = self._color_heading + "Ships: "
+            left_screen[9]  += self._color_list + " - ".join([ship['name'] for ship in state['sector']['ships']])
+        left_screen[-1]  = self._color_heading + "Warps to: "
+        left_screen[-1] += self._color_list + " - ".join(commands['move']['direction'])
 
         right_screen = self.render_info_panel(height = main_display_height)
 
@@ -480,7 +489,7 @@ class Menu(object):
         main_display_height = self.screen._main_display_height
 
         # title
-        self.screen._title = "%s (%s,%s)" % (
+        self.screen._title = color.Fore.MAGENTA + "%s (%s,%s)" % (
             state['at']['name'],
             state['at']['location']['x'],
             state['at']['location']['y'],
@@ -515,29 +524,29 @@ class Menu(object):
         """
         info_panel = ["" for x in range(height)]
         # Player Info
-        info_panel[1] = "Player Information"
+        info_panel[1] = color.Fore.MAGENTA + "Player Information"
         if 'credits' in self._state['user']:
-            info_panel[2] = "Credits: %s" % self._state['user']['credits']
+            info_panel[2] = self._color_heading + "Credits: " + self._color_normal + "%s" % self._state['user']['credits']
 
         # Ship Info
-        info_panel[4] = "Ship Information"
-        info_panel[5] = self._state['user_location']['name']
+        info_panel[4] = color.Fore.MAGENTA + "Ship Information"
+        info_panel[5] = self._color_normal + self._state['user_location']['name']
         holds_used = 0
         for item in self._state['user_location']['cargo']:
             holds_used += item['count'] if 'count' in item else 0
         if 'holds' in self._state['user_location']:
-            info_panel[6] = "Cargo: %s/%s" % (
+            info_panel[6] = self._color_heading + "Cargo: " + self._color_normal + "%s/%s" % (
                 holds_used,
                 self._state['user_location']['holds'],
             )
         if 'warp' in self._state['user_location']:
-            info_panel[7] = "Warp Speed: %s" % self._state['user_location']['warp']
+            info_panel[7] = self._color_heading + "Warp Speed: " + self._color_normal + "%s" % self._state['user_location']['warp']
         if 'weapons' in self._state['user_location'] and self._state['user_location']['weapons']:
-            info_panel[8] = "Weapons: %s" % self._state['user_location']['weapons']
+            info_panel[8] = self._color_heading + "Weapons: " + self._color_normal + "%s" % self._state['user_location']['weapons']
         if 'hull' in self._state['user_location']:
-            info_panel[9] = "Hull: %s" % self._state['user_location']['hull']
+            info_panel[9] = self._color_heading + "Hull: " + self._color_normal + "%s" % self._state['user_location']['hull']
         if 'shields' in self._state['user_location']:
-            info_panel[10] = "Shields: %s" % self._state['user_location']['shields']
+            info_panel[10] = self._color_heading + "Shields: " + self._color_normal + "%s" % self._state['user_location']['shields']
         return info_panel
 
     def render_object(self, obj):
@@ -612,6 +621,9 @@ if __name__ == "__main__":
     log.addHandler(fh)
 
     log.info("Initializing...")
+
+    log.info("Initializing coloring...")
+    color.init(autoreset=True)
 
     # Create Client and connect
     host = args.host
