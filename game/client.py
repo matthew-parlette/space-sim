@@ -124,6 +124,14 @@ class Screen(object):
             print "-" * int(self.width)
 
     def _render_line(self, left = "", right = "", border = True, title = False):
+        """
+        Print a line of the screen.
+
+        This function takes into account colors by searching the string for the esacpe sequence \033
+          to line everything up properly.
+        
+        The left line will be truncated if it is too long to fit into the window.
+        """
         if self._enable_right_screen and not title:
             if border:
                 # Before printing, we may need to truncate the line if it is too long
