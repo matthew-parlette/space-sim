@@ -126,6 +126,11 @@ class Screen(object):
     def _render_line(self, left = "", right = "", border = True, title = False):
         if self._enable_right_screen and not title:
             if border:
+                # Before printing, we may need to truncate the line if it is too long
+                # Check the length, but remove color codes before doing so
+                if len(left) - (5 * left.count('\033')) > self._left_width - 7:
+                    left = left[0:(self._left_width + (5 * left.count('\033')) - 10)]
+                    left = left + self._color_border + "..."
                 print "%s| %s%s %s|" % (
                     self._color_border,
                     left.ljust(int(self._left_width) - 6 + (5 * left.count('\033'))),
