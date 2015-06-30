@@ -6,6 +6,7 @@ import os
 import json
 import socket
 import pprint
+import re
 import colorama as color
 
 class _Getch:
@@ -137,16 +138,14 @@ class Screen(object):
             if border:
                 # Before printing, we may need to truncate the line if it is too long
                 # Check the length, but remove color codes before doing so
-                if len(left) - (5 * left.count('\033')) > self._left_width - 7:
+                if len(left) - self._count_color_characters(left) > self._left_width - 7:
                     self.log.debug("Truncating line...")
-                    # This will only account for colors with two digits, ex: \033[30m
-                    # Styles will not work since they are only one digit, ex: \033[1m
-                    left = left[0:(self._left_width + (5 * left.count('\033')) - 10)]
+                    left = left[0:(self._left_width + self._count_color_characters(left) - 10)]
                     left = left + self._color_border + "..."
                 print "%s| %s%s %s|" % (
                     self._color_border,
-                    left.ljust(int(self._left_width) - 6 + (5 * left.count('\033'))),
-                    self._color_border + "| %s" % (right.ljust(int(self.width) - int(self._left_width) + (5 * right.count('\033')))),
+                    left.ljust(int(self._left_width) - 6 + self._count_color_characters(left)),
+                    self._color_border + "| %s" % (right.ljust(int(self.width) - int(self._left_width) + self._count_color_characters(right))),
                     self._color_border,
                 )
             else:
@@ -170,6 +169,23 @@ class Screen(object):
         # Reset prompt
         self._prompt = None
 
+    def _count_color_characters(self,string):
+        """
+        Helper function to return the number of characters in color codes in this line.
+
+        This is useful for lining up borders on lines with color.
+        """
+        count = 0
+        matches = re.findall('(\\033\[\d+m)',string)
+        if matches:
+            for s in matches:
+                count += len(s)
+            self.log.debug("Processing line '%s', found %s characters in color codes" % (
+                string[:8] + '...',
+                str(count),
+            ))
+        return count
+
 class Menu(object):
     def __init__(self, state = {}, commands = {}, log = None):
         self.log = log
@@ -182,12 +198,12 @@ class Menu(object):
         self._color_heading = color.Fore.YELLOW
         self._color_list = color.Fore.CYAN
         self._color_good = color.Fore.GREEN
-        self._color_normal = color.Fore.BLUE
+        self._color_normal = color.Style.BRIGHT + color.Fore.BLUE + color.Style.NORMAL
         self._color_bad = color.Fore.RED
         self._color_option_key = color.Fore.GREEN
         self._color_option_value = color.Fore.WHITE
         self._color_credits = color.Fore.GREEN
-        self._color_item_name =  color.Fore.BLUE
+        self._color_item_name = color.Fore.BLUE
         self._color_item_quantity = color.Fore.CYAN
 
     def parse_json(self, json_string):
