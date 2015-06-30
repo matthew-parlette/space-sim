@@ -1,0 +1,12 @@
+#!/bin/bash
+
+if [ -n "$1" ]
+then
+    system="$1"
+else
+    system="client"
+fi
+
+shift 1
+
+eval "game/$system.py $@"
