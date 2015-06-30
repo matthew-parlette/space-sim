@@ -156,7 +156,7 @@ class Screen(object):
                     # For titles, print the text in color
                     print self._color_border + "| " + self._color_title + left.ljust(int(self.width) - 4 ) + self._color_border + " |"
                 else:
-                    print self._color_border + "| " + left.ljust(int(self.width) - 4) + self._color_border + " |"
+                    print self._color_border + "| " + left.ljust(int(self.width) - 4 + self._count_color_characters(left)) + self._color_border + " |"
             else:
                 print left
 
@@ -453,7 +453,7 @@ class Menu(object):
                         key.upper(),
                         self._color_none,
                         self._color_option_value,
-                        command_dict[key][1:].replace('_',' ').ljust(int(width) - 7),
+                        command_dict[key][1:].replace('_',' '),
                     )
                 else:
                     # Key is not the start of the option
@@ -471,7 +471,7 @@ class Menu(object):
                                 key.upper(),
                                 self._color_none,
                                 self._color_option_value,
-                                self.render_object(obj).ljust(int(width) - 8)
+                                self.render_object(obj)
                             )
                         else:
                             # Otherwise just print the command
@@ -481,7 +481,7 @@ class Menu(object):
                                 key.upper(),
                                 self._color_none,
                                 self._color_option_value,
-                                command_dict[key].replace('_',' ').ljust(int(width) - 8),
+                                command_dict[key].replace('_',' '),
                             )
                     else:
                         # This key's value is a dictionary or list
@@ -491,7 +491,7 @@ class Menu(object):
                             key.upper(),
                             self._color_none,
                             self._color_option_value,
-                            str(command_dict[key]).ljust(int(width) - 8),
+                            str(command_dict[key]),
                         )
                 index += 1
         if user_can_cancel: left[-1] = "(Enter to cancel)"
