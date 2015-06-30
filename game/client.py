@@ -625,7 +625,14 @@ class Menu(object):
                 self._color_none,
             ) for c in obj['cargo'] if c['count']])
             if player_selling:
-                business_buying = " - ".join(["%s @ $%s" % (c['name'][0],c['cost']['buying']) for c in obj['cargo'] if c['id'] in player_selling])
+                business_buying = " - ".join(["%s%s%s @ %s$%s%s" % (
+                    self._color_normal,
+                    c['name'][0],
+                    self._color_none,
+                    self._color_credits,
+                    c['cost']['buying'],
+                    self._color_none,
+                ) for c in obj['cargo'] if c['id'] in player_selling])
             return "%s%s%s %s%s" % (
                 self._color_list,
                 str(obj['name']),
