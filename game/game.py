@@ -110,7 +110,6 @@ class Game(object):
             for obj_list in Game._ships.values():
                 for obj in obj_list:
                     if of.location_id == obj.id: return obj
-                    return Game._ships[of.location_id]
         if hasattr(of, 'coordinates'):
             if of.coordinates in Game._sectors.keys():
                 return Game._sectors[of.coordinates]
@@ -336,8 +335,17 @@ class Game(object):
         ship.location = coordinates
         shared_dict = getattr(Game,'_ships', None)
         if coordinates in shared_dict:
+            self.log.debug("Coordinates %s exists in %s, appending ship to current list of %s..." % (
+                str(coordinates),
+                "Game._ships",
+                str(shared_dict[coordinates])
+            ))
             shared_dict[coordinates].append(ship)
         else:
+            self.log.debug("Coordinates %s does not exist in %s, creating a new ship list..." % (
+                str(coordinates),
+                "Game._ships",
+            ))
             shared_dict[coordinates] = [ship]
         return True
 
