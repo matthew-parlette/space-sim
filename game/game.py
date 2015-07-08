@@ -87,7 +87,10 @@ class Game(object):
         friendly_name = name
         object_name = '_' + name
         filename = os.path.join(self.data_dir,friendly_name + '.yaml')
-        self.log.debug("Loading shared object '%s'" % str(friendly_name))
+        self.log.debug("Loading shared object '%s' from %s" % (
+            str(friendly_name),
+            str(filename),
+        ))
         # Do we need to initialize the shared object?
         if getattr(Game, object_name, None):
             self.log.debug("Shared object '%s' is available" % str(friendly_name))
