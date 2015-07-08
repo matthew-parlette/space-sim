@@ -34,7 +34,11 @@ class Game(object):
     def __init__(self, data_dir = 'data', log = None, bigbang = False):
         self.log = log
         self.file = file
-        self.data_dir = data_dir
+	self.data_dir = data_dir
+
+	# If the data_dir is relative, then we need to find the absolute path for daemonizing
+	if not os.path.isabs(self.data_dir):
+	    self.data_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)),data_dir)
 
         if bigbang:
             # Delete data directory if bigbang is True
@@ -47,11 +51,13 @@ class Game(object):
             self.bigbang = False
 
         self.log.debug("Verifying data directory exists (%s)..." % str(self.data_dir))
-        if not os.path.isdir(data_dir):
-            os.makedirs(data_dir)
+        if not os.path.isdir(self.data_dir):
+	    self.log.debug("Data directory does not exist, creating it...")
+            os.makedirs(self.data_dir)
 
         self.log.debug("Shared objects for all Game instances: %s" % str(self.shared_objects))
         for obj in self.shared_objects:
+	    self.log.debug("Shared object %s exists, loading..." % str(obj))
             self.load_shared_object(obj)
 
         self.logged_in_user = None
