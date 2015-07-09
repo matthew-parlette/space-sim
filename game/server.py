@@ -164,6 +164,9 @@ if __name__ == "__main__":
     if args.command == 'stop':
         print "Stopping %s daemon..." % str(name)
         server.stop()
+    if args.command == 'restart':
+        print "Restarting %s daemon..." % str(name)
+        server.restart()
     if args.command == 'run':
         # Console Logging
         ch = logging.StreamHandler()
