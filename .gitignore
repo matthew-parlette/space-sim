@@ -53,7 +53,7 @@ coverage.xml
 docs/_build/
 
 # Data directory
-data/
+*data/
 
 # Vim
 *.swp

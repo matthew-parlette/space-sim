@@ -4,11 +4,15 @@ import argparse
 import logging
 import os
 import json
+from daemon import Daemon
 from game import Game
 from gevent.server import StreamServer
 
 global log
 global args
+
+name = "space-sim-server"
+pid = "/tmp/" + str(name) + ".pid"
 
 class ServerGameAdapter(object):
     def __init__(self, log = None, bigbang = False):
@@ -86,10 +90,12 @@ def handle(socket, address):
     log.info("Connection received from %s" % str(address))
     log.info("Creating ServerGameAdapter...")
     game = ServerGameAdapter(log = log, bigbang = args.bigbang)
+    log.debug("Creating fileobj")
     fileobj = socket.makefile()
 
     while True:
         # Listen for commands
+        log.debug("Waiting for commands...")
         line = fileobj.readline()
         if not line:
             log.info("Client disconnected, saving game...")
@@ -116,9 +122,21 @@ def handle(socket, address):
         fileobj.write("\n")
         fileobj.flush()
 
+class Server(Daemon):
+    def run(self):
+        log.info("Initializing...")
+
+        while True:
+            host = '0.0.0.0'
+            port = 10344
+            server = StreamServer((host, port), handle)
+            log.info("Server initialized on %s:%s, listening..." % (str(host),str(port)))
+            server.serve_forever()
+
 if __name__ == "__main__":
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Process command line options.')
+    parser.add_argument('command', default='status', help='Server command, one of: start, stop, run, status')
     parser.add_argument('-d','--debug', action='store_true', help='Enable debug logging')
     parser.add_argument('--bigbang', action='store_true', help='Delete everything before starting')
     parser.add_argument('--version', action='version', version='0')
@@ -132,22 +150,33 @@ if __name__ == "__main__":
     log.setLevel(log_level)
     formatter = logging.Formatter('%(asctime)s:%(name)s:%(levelname)s:%(funcName)s(%(lineno)i):%(message)s')
 
-    ## Console Logging
-    ch = logging.StreamHandler()
-    ch.setLevel(log_level)
-    ch.setFormatter(formatter)
-    log.addHandler(ch)
-
     ## File Logging
     fh = logging.FileHandler(os.path.basename(__file__) + '.log')
     fh.setLevel(log_level)
     fh.setFormatter(formatter)
     log.addHandler(fh)
 
-    log.info("Initializing...")
+    server = Server(pid)
 
-    host = '0.0.0.0'
-    port = 10344
-    server = StreamServer((host, port), handle)
-    log.info("Server initialized on %s:%s, listening..." % (str(host),str(port)))
-    server.serve_forever()
+    if args.command == 'start':
+        print "Starting %s daemon..." % str(name)
+        server.start()
+    if args.command == 'stop':
+        print "Stopping %s daemon..." % str(name)
+        server.stop()
+    if args.command == 'restart':
+        print "Restarting %s daemon..." % str(name)
+        server.restart()
+    if args.command == 'run':
+        # Console Logging
+        ch = logging.StreamHandler()
+        ch.setLevel(log_level)
+        ch.setFormatter(formatter)
+        log.addHandler(ch)
+        server.run()
+    if args.command == 'status':
+        print str(name) + " is",
+        if os.path.isfile(pid):
+            print "running"
+        else:
+            print "not running"

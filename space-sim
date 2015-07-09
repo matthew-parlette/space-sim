@@ -9,4 +9,13 @@ fi
 
 shift 1
 
+# Install dependencies
+if [ -f "game/$system-requirements.txt" ]
+then
+    echo "Launcher: Installing prerequisites..."
+    eval "sudo pip install -q -r game/$system-requirements.txt"
+fi
+
+# Start the game
+echo "Launcher: Starting $system..."
 eval "game/$system.py $@"
